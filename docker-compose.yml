@@ -1,0 +1,48 @@
+services:
+  liscihub-postgres:
+    image: postgres:16
+    container_name: liscihub-postgres
+    restart: unless-stopped
+    env_file:
+      - infra/.env
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - ./docker-data/liscihub-postgres:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  lifescience_watch:
+    build: .
+    container_name: lifescience_watch
+    image: lifescience_watch:latest
+    ports:
+      - "127.0.0.1:${API_BIND_PORT:-8011}:8011"
+    restart: unless-stopped
+    depends_on:
+      liscihub-postgres:
+        condition: service_healthy
+    env_file:
+      - infra/.env
+    environment:
+      LSW_SOURCES: /app/data/sources.csv
+      LSW_LOAD_CONFIG: /app/data/load_config.csv
+      LSW_SCRAPING_CONFIG: /app/data/scraping_config.json
+      LSW_DB_PATH: /app/data/lifescience_watch.db
+      LSW_OUTPUT_DIR: /app/outputs
+      POSTGRES_HOST: liscihub-postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
