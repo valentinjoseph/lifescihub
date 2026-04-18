@@ -39,6 +39,7 @@ lifescience_watch/
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+cp infra/.env.example infra/.env
 pip install -r requirements.txt
 ```
 
@@ -83,7 +84,8 @@ The explicit `--env-file infra/.env` keeps this repo aligned with the NASAHub co
 Check service health:
 
 ```bash
-curl http://127.0.0.1:8011/health
+curl http://127.0.0.1:8011/health \
+  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
 ```
 
 Check dedicated PostgreSQL:
@@ -111,7 +113,7 @@ Connection settings:
 - Port: `5434`
 - Database: `liscihub`
 - Username: `liscihub`
-- Password: `change_me`
+- Password: value of `POSTGRES_PASSWORD` in `infra/.env`
 
 SSH tunnel settings:
 
@@ -138,7 +140,15 @@ NASAHub-style config files in this repo:
 Trigger a scrape run through the service:
 
 ```bash
-curl -X POST http://127.0.0.1:8011/run
+curl -X POST http://127.0.0.1:8011/run \
+  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
+```
+
+Check service status:
+
+```bash
+curl http://127.0.0.1:8011/status \
+  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
 ```
 
 ### Restart Later
@@ -205,6 +215,8 @@ API endpoints:
 - `GET /health`
 - `GET /status`
 - `POST /run`
+
+All three operational endpoints require the `X-Run-Token` header. FastAPI docs are disabled by default when `API_ENABLE_DOCS=false`.
 
 PostgreSQL defaults for this stack:
 
@@ -274,7 +286,7 @@ Workbook formatting includes:
 - frozen header row
 - filters on every tab
 - company-colored rows for easier scanning
-- top-news tabs sorted by priority score
+- top-news tabs sorted by priority score with tuned thresholds for week/month views
 - wrapped summary/title/url cells
 - spreadsheet-friendly column widths
 

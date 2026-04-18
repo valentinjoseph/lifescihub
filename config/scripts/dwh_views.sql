@@ -132,12 +132,12 @@ WHERE published_date >= now() - INTERVAL '6 months';
 CREATE OR REPLACE VIEW dwh.v_top_news_week AS
 SELECT *
 FROM dwh.v_news_week
-WHERE priority_score >= 80;
+WHERE priority_score >= 72;
 
 CREATE OR REPLACE VIEW dwh.v_top_news_month AS
 SELECT *
 FROM dwh.v_news_month
-WHERE priority_score >= 80;
+WHERE priority_score >= 75;
 
 CREATE OR REPLACE VIEW dwh.v_news_all_export AS
 SELECT

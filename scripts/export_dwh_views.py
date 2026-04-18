@@ -32,28 +32,28 @@ VIEW_SHEETS: list[tuple[str, str]] = [
 ]
 
 COMPANY_COLORS = {
-    "ALLIANCE HEALTHCARE": "DDEBF7",
-    "ASTERA": "E2F0D9",
-    "BIOCODEX": "FCE4D6",
-    "CEVA SANTE": "E4DFEC",
-    "DELPHARM": "FFF2CC",
-    "EUROFINS": "D9EAF7",
-    "FAREVA": "F4CCCC",
-    "GALDERMA": "D9EAD3",
-    "HAELON": "FCE5CD",
-    "IPSEN": "D0E0E3",
-    "LILLY": "F4D7D7",
-    "MODERNA": "D9D2E9",
-    "OPELLA": "F9E2AF",
-    "OXIPHARM": "D9EAD3",
-    "PFIZER": "CFE2F3",
-    "PIERRE FABRE": "FCE5CD",
-    "SANOFI": "D9E2F3",
-    "SEBIA": "EAD1DC",
-    "SERVIER": "FCE5CD",
-    "STAGO": "D9EAD3",
-    "VIATRIS": "E6E6FA",
-    "VIRBAC": "D0E0E3",
+    "ALLIANCE HEALTHCARE": "D8EAF7",
+    "ASTERA": "DFF2E1",
+    "BIOCODEX": "FADBD8",
+    "CEVA SANTE": "E8DAEF",
+    "DELPHARM": "FCF3CF",
+    "EUROFINS": "D6EAF8",
+    "FAREVA": "F5C6C6",
+    "GALDERMA": "D5F5E3",
+    "HAELON": "FDEBD0",
+    "IPSEN": "D4E6F1",
+    "LILLY": "FADBD8",
+    "MODERNA": "E8DAEF",
+    "OPELLA": "F9E79F",
+    "OXIPHARM": "D1F2EB",
+    "PFIZER": "CFE2FF",
+    "PIERRE FABRE": "FDEDEC",
+    "SANOFI": "D6EAF8",
+    "SEBIA": "EBDEF0",
+    "SERVIER": "FAD7A0",
+    "STAGO": "D5F5E3",
+    "VIATRIS": "EAECEE",
+    "VIRBAC": "D4EFDF",
 }
 
 
@@ -90,13 +90,13 @@ def build_overview_frames(frames: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
             {"metric": "month_articles", "value": len(month_frame.index)},
             {
                 "metric": "high_priority_articles",
-                "value": int(all_frame["priority_score"].ge(80).sum()) if "priority_score" in all_frame else 0,
+                "value": int(all_frame["priority_score"].ge(75).sum()) if "priority_score" in all_frame else 0,
             },
         ]
     )
 
     company_counts = (
-        week_frame.groupby("company_name", dropna=False)
+        month_frame.groupby("company_name", dropna=False)
         .size()
         .reset_index(name="article_count")
         .sort_values(["article_count", "company_name"], ascending=[False, True])

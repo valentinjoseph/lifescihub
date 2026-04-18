@@ -9,16 +9,23 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from sqlalchemy import text
 
-from core.config import API_TITLE, API_VERSION, DATABASE_URL
+from core.config import API_ENABLE_DOCS, API_TITLE, API_VERSION
 from db.session import engine
 from orchestration.LS_MAIN_REFACTORED import PROJECT_ROOT, run_pipeline
 
 
-app = FastAPI(title=API_TITLE, version=API_VERSION)
+app = FastAPI(
+    title=API_TITLE,
+    version=API_VERSION,
+    docs_url="/docs" if API_ENABLE_DOCS else None,
+    redoc_url="/redoc" if API_ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if API_ENABLE_DOCS else None,
+)
 _run_lock = threading.Lock()
+RUN_TOKEN = os.getenv("LSW_RUN_TOKEN")
 
 
 def _default_paths() -> dict[str, str]:
@@ -50,7 +57,7 @@ def _pipeline_args(dry_run: bool = False, max_workers: int | None = None, verbos
 def _db_info() -> dict[str, Any]:
     db_path = Path(_default_paths()["db_path"])
     if not db_path.exists():
-        return {"exists": False, "path": str(db_path)}
+        return {"exists": False}
 
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
@@ -66,7 +73,6 @@ def _db_info() -> dict[str, Any]:
 
     return {
         "exists": True,
-        "path": str(db_path),
         "tables": tables,
         "latest_run": dict(latest_run) if latest_run else None,
     }
@@ -93,7 +99,6 @@ def _postgres_info() -> dict[str, Any]:
             ]
         return {
             "reachable": True,
-            "database_url": DATABASE_URL,
             "current_database": current["db"],
             "current_user": current["user"],
             "schemas": schemas,
@@ -101,9 +106,15 @@ def _postgres_info() -> dict[str, Any]:
     except Exception as exc:
         return {
             "reachable": False,
-            "database_url": DATABASE_URL,
             "error": str(exc),
         }
+
+
+def _require_run_token(x_run_token: str | None) -> None:
+    if not RUN_TOKEN:
+        raise HTTPException(status_code=503, detail="Run token is not configured")
+    if x_run_token != RUN_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid run token")
 
 
 @app.get("/")
@@ -116,7 +127,8 @@ def root() -> dict[str, Any]:
 
 
 @app.get("/health")
-def health() -> dict[str, Any]:
+def health(x_run_token: str | None = Header(default=None)) -> dict[str, Any]:
+    _require_run_token(x_run_token)
     return {
         "status": "ok",
         "service": "lifescience_watch",
@@ -127,17 +139,25 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/status")
-def status() -> dict[str, Any]:
+def status(x_run_token: str | None = Header(default=None)) -> dict[str, Any]:
+    _require_run_token(x_run_token)
     return {
         "service": "lifescience_watch",
         "sqlite": _db_info(),
         "postgres": _postgres_info(),
-        "paths": _default_paths(),
+        "config": {
+            "sources_configured": Path(_default_paths()["sources"]).exists(),
+            "load_config_configured": Path(_default_paths()["load_config"]).exists(),
+            "scraping_config_configured": Path(_default_paths()["scraping_config"]).exists(),
+            "output_dir_exists": Path(_default_paths()["output_dir"]).exists(),
+        },
     }
 
 
 @app.post("/run")
-def run_now() -> dict[str, Any]:
+def run_now(x_run_token: str | None = Header(default=None)) -> dict[str, Any]:
+    _require_run_token(x_run_token)
+
     if not _run_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="A pipeline run is already in progress")
 
