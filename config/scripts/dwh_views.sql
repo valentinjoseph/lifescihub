@@ -1,5 +1,13 @@
 CREATE SCHEMA IF NOT EXISTS dwh;
 
+DROP VIEW IF EXISTS dwh.v_top_news_month_export;
+DROP VIEW IF EXISTS dwh.v_top_news_week_export;
+DROP VIEW IF EXISTS dwh.v_top_news_month;
+DROP VIEW IF EXISTS dwh.v_top_news_week;
+DROP VIEW IF EXISTS dwh.v_news_week_export;
+DROP VIEW IF EXISTS dwh.v_news_month_export;
+DROP VIEW IF EXISTS dwh.v_news_6_months_export;
+DROP VIEW IF EXISTS dwh.v_news_all_export;
 DROP VIEW IF EXISTS dwh.v_news_week;
 DROP VIEW IF EXISTS dwh.v_news_month;
 DROP VIEW IF EXISTS dwh.v_news_6_months;
@@ -80,6 +88,21 @@ SELECT
     src.title,
     src.article_content,
     summary.article_summary,
+    summary.key_topic,
+    summary.business_impact,
+    summary.geography,
+    summary.signal_type,
+    CASE
+        WHEN COALESCE(summary.signal_type, '') IN ('approval', 'acquisition', 'merger', 'trial-readout', 'earnings') THEN 95
+        WHEN COALESCE(summary.key_topic, '') IN ('regulatory', 'm&a', 'financial') THEN 88
+        WHEN COALESCE(summary.signal_type, '') IN ('partnership', 'plant-expansion', 'launch') THEN 80
+        WHEN COALESCE(summary.key_topic, '') IN ('clinical', 'partnership', 'manufacturing', 'product') THEN 72
+        WHEN lower(COALESCE(src.title, '')) LIKE '%phase 3%' THEN 84
+        WHEN lower(COALESCE(src.title, '')) LIKE '%fda%' THEN 90
+        WHEN lower(COALESCE(src.title, '')) LIKE '%acquisition%' THEN 92
+        WHEN lower(COALESCE(src.title, '')) LIKE '%earnings%' THEN 90
+        ELSE 55
+    END AS priority_score,
     summary.summary_model,
     summary.summary_status,
     src.published_date,
@@ -105,3 +128,103 @@ CREATE OR REPLACE VIEW dwh.v_news_6_months AS
 SELECT *
 FROM dwh.v_news_all
 WHERE published_date >= now() - INTERVAL '6 months';
+
+CREATE OR REPLACE VIEW dwh.v_top_news_week AS
+SELECT *
+FROM dwh.v_news_week
+WHERE priority_score >= 80;
+
+CREATE OR REPLACE VIEW dwh.v_top_news_month AS
+SELECT *
+FROM dwh.v_news_month
+WHERE priority_score >= 80;
+
+CREATE OR REPLACE VIEW dwh.v_news_all_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_news_all;
+
+CREATE OR REPLACE VIEW dwh.v_news_week_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_news_week;
+
+CREATE OR REPLACE VIEW dwh.v_news_month_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_news_month;
+
+CREATE OR REPLACE VIEW dwh.v_news_6_months_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_news_6_months;
+
+CREATE OR REPLACE VIEW dwh.v_top_news_week_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_top_news_week;
+
+CREATE OR REPLACE VIEW dwh.v_top_news_month_export AS
+SELECT
+    company_name,
+    published_date,
+    priority_score,
+    title,
+    article_summary,
+    key_topic,
+    business_impact,
+    geography,
+    signal_type,
+    url,
+    summary_status
+FROM dwh.v_top_news_month;

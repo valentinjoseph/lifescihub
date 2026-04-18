@@ -20,5 +20,6 @@ dist/
 build/
 *.egg-info/
 outputs/
+exports/
 data/*.db
 docker-data/

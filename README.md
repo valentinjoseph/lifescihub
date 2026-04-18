@@ -92,6 +92,15 @@ Check dedicated PostgreSQL:
 docker exec -it liscihub-postgres psql -U liscihub -d liscihub -c "\dn"
 ```
 
+Export the DWH views to Excel:
+
+```bash
+cd /home/hl-lenovo/projects/lifescience_watch
+source .venv/bin/activate
+set -a && source infra/.env && set +a
+python scripts/export_dwh_views.py
+```
+
 ### DBeaver Connection
 
 Recommended option from your local machine is an SSH tunnel.
@@ -212,6 +221,158 @@ cd /home/hl-lenovo/projects/lifescience_watch
 source .venv/bin/activate
 alembic upgrade head
 ```
+
+## Spreadsheet Exports
+
+The four DWH time-window views can be exported to a single Excel workbook with four tabs:
+
+- `dwh.v_news_all` -> `news_all`
+- `dwh.v_news_week` -> `news_week`
+- `dwh.v_news_month` -> `news_month`
+- `dwh.v_news_6_months` -> `news_6_months`
+
+For spreadsheet delivery, the exporter now uses the presentation-focused views:
+
+- `dwh.v_top_news_week_export`
+- `dwh.v_top_news_month_export`
+- `dwh.v_news_all_export`
+- `dwh.v_news_week_export`
+- `dwh.v_news_month_export`
+- `dwh.v_news_6_months_export`
+
+These keep only reader-friendly columns:
+
+- `company_name`
+- `published_date`
+- `priority_score`
+- `title`
+- `article_summary`
+- `key_topic`
+- `business_impact`
+- `geography`
+- `signal_type`
+- `url`
+- `summary_status`
+
+Export command:
+
+```bash
+cd /home/hl-lenovo/projects/lifescience_watch
+source .venv/bin/activate
+set -a && source infra/.env && set +a
+python scripts/export_dwh_views.py
+```
+
+Files written:
+
+- `exports/lifescience_watch_news_latest.xlsx`
+- `exports/lifescience_watch_news_YYYYMMDDTHHMMSSZ.xlsx`
+
+Workbook formatting includes:
+
+- overview tabs for company, topic, and signal counts
+- frozen header row
+- filters on every tab
+- company-colored rows for easier scanning
+- top-news tabs sorted by priority score
+- wrapped summary/title/url cells
+- spreadsheet-friendly column widths
+
+Recommended daily cron on the Lenovo at 06:15:
+
+```cron
+15 6 * * * cd /home/hl-lenovo/projects/lifescience_watch && /bin/bash -lc 'set -a && source infra/.env && set +a && source .venv/bin/activate && python scripts/export_dwh_views.py' >> /home/hl-lenovo/projects/lifescience_watch/outputs/export_dwh_views.log 2>&1
+```
+
+If you want the export to run after scraping and summary refresh, use this chained command instead:
+
+```bash
+cd /home/hl-lenovo/projects/lifescience_watch
+source .venv/bin/activate
+set -a && source infra/.env && set +a
+python -m orchestration.LS_MAIN_REFACTORED && python scripts/generate_article_summaries.py && python scripts/export_dwh_views.py
+```
+
+There is also a single runner script for cron or manual use:
+
+```bash
+cd /home/hl-lenovo/projects/lifescience_watch
+/bin/bash scripts/run_daily_pipeline.sh
+```
+
+That runner now performs all four steps in order:
+
+- scraping
+- summary refresh
+- Excel export
+- optional Google Drive upload with `rclone`
+
+Recommended automatic schedule at 08:00 UTC every day:
+
+```cron
+0 8 * * * /bin/bash /home/hl-lenovo/projects/lifescience_watch/scripts/run_daily_pipeline.sh >> /home/hl-lenovo/projects/lifescience_watch/outputs/run_daily_pipeline.log 2>&1
+```
+
+## Google Drive Sync
+
+The daily pipeline can upload the latest workbook to Google Drive after export. The repo is already wired for this through `scripts/upload_export_to_gdrive.sh`.
+
+Env settings in `infra/.env`:
+
+- `GDRIVE_UPLOAD_ENABLED=false`
+- `GDRIVE_REMOTE=`
+- `GDRIVE_FOLDER=LifeScienceWatch`
+- `GDRIVE_UPLOAD_ARCHIVE=false`
+
+Recommended setup on the Lenovo:
+
+1. Install `rclone`
+
+```bash
+sudo apt-get update
+sudo apt-get install -y rclone
+```
+
+2. Create a Google Drive remote
+
+```bash
+rclone config
+```
+
+Choose:
+
+- `n` for new remote
+- name: `gdrive_liscihub`
+- storage: `drive`
+- then follow the Google OAuth prompts
+
+3. Test the remote
+
+```bash
+rclone lsd gdrive_liscihub:
+```
+
+4. Enable uploads in `infra/.env`
+
+```dotenv
+GDRIVE_UPLOAD_ENABLED=true
+GDRIVE_REMOTE=gdrive_liscihub
+GDRIVE_FOLDER=LifeScienceWatch
+GDRIVE_UPLOAD_ARCHIVE=false
+```
+
+5. Run a manual test
+
+```bash
+cd /home/hl-lenovo/projects/lifescience_watch
+/bin/bash scripts/run_daily_pipeline.sh
+```
+
+The main shared file on Drive will be:
+
+- `LifeScienceWatch/lifescience_watch_news_latest.xlsx`
+
+If you want the recipient to access it, share the destination Google Drive folder with their email from the Google Drive UI.
 
 ## Notes
 
