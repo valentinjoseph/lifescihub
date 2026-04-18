@@ -14,7 +14,7 @@ import requests
 from utils.html_parser import extract_article_content, extract_article_metadata, extract_jsonld_items
 from utils.http_client import get_user_agent, make_session
 from utils.robots_compliance import can_fetch_url
-from utils.url_extractor import extract_listing_links
+from utils.url_extractor import extract_additional_listing_pages, extract_listing_links
 
 logger = logging.getLogger(__name__)
 
@@ -93,19 +93,39 @@ def scrape_source(company_name: str, listing_url: str, config: dict[str, Any]) -
         return records, _finalize_metrics(metrics)
 
     metrics["urls_fetched"] += 1
-    listing_html = response.text
-    jsonld_items = extract_jsonld_items(listing_html, response.url)
-    candidate_urls = [item["url"] for item in jsonld_items if isinstance(item.get("url"), str)]
+    listing_pages: list[tuple[str, str]] = [(response.url, response.text)]
+    for page_url in extract_additional_listing_pages(response.text, response.url):
+        try:
+            start_time = time.perf_counter()
+            page_response = session.get(page_url, timeout=request_timeout)
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            metrics["urls_attempted"] += 1
+            _record_timing(metrics, elapsed_ms)
+        except requests.RequestException as exc:
+            logger.warning("Request failed for paginated listing page %s: %s", page_url, exc)
+            metrics["error_count"] += 1
+            continue
 
-    if len(candidate_urls) < max_items:
-        extra_urls = extract_listing_links(listing_html, response.url, max_items)
-        candidate_urls = list(dict.fromkeys(candidate_urls + extra_urls))
+        page_content_type = page_response.headers.get("Content-Type", "")
+        if page_response.ok and "text/html" in page_content_type.lower():
+            metrics["urls_fetched"] += 1
+            listing_pages.append((page_response.url, page_response.text))
+        else:
+            metrics["error_count"] += 1
 
-    jsonld_by_url = {
-        item["url"]: item
-        for item in jsonld_items
-        if isinstance(item, dict) and isinstance(item.get("url"), str)
-    }
+    candidate_urls: list[str] = []
+    jsonld_by_url: dict[str, dict[str, Any]] = {}
+
+    for page_url, listing_html in listing_pages:
+        jsonld_items = extract_jsonld_items(listing_html, page_url)
+        candidate_urls.extend([item["url"] for item in jsonld_items if isinstance(item.get("url"), str)])
+        for item in jsonld_items:
+            if isinstance(item, dict) and isinstance(item.get("url"), str):
+                jsonld_by_url[item["url"]] = item
+        if len(candidate_urls) < max_items:
+            candidate_urls.extend(extract_listing_links(listing_html, page_url, max_items))
+
+    candidate_urls = list(dict.fromkeys(candidate_urls))
 
     for article_url in candidate_urls[:max_items]:
         time.sleep(article_sleep)
