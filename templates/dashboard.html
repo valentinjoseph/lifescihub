@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Science Watch Dashboard</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Life Science Watch</p>
+        <h1>News Dashboard</h1>
+        <p class="subtitle">Filter company news by period, review article-level summaries, and ask a chat agent for a company-by-company briefing.</p>
+      </div>
+      <div class="hero-card">
+        <label for="runToken">Access Token</label>
+        <input id="runToken" type="password" placeholder="Paste viewer or admin token">
+        <p class="helper">Viewer tokens unlock read-only dashboard/chat access. Admin tokens also unlock operational API routes.</p>
+      </div>
+    </section>
+
+    <section class="controls-card">
+      <div class="controls-grid">
+        <label>
+          <span>Company</span>
+          <select id="companySelect"></select>
+        </label>
+        <label>
+          <span>Period</span>
+          <select id="periodSelect"></select>
+        </label>
+        <button id="refreshButton" class="primary">Refresh</button>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <span class="stat-label">Articles</span>
+        <strong id="articleCount">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Companies</span>
+        <strong id="companyCount">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Avg Priority</span>
+        <strong id="avgPriority">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Top Topics</span>
+        <strong id="topTopics">None</strong>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>News Feed</h2>
+          <p id="newsMeta">Latest rows</p>
+        </div>
+        <div id="newsRows" class="news-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Ask The Agent</h2>
+          <p>Example: “what are the news this week?”</p>
+        </div>
+        <textarea id="chatQuestion" rows="5" placeholder="Ask for a weekly summary, focus on one company, or ask for the highest-priority signals."></textarea>
+        <div class="chat-actions">
+          <button id="chatButton" class="primary">Ask</button>
+        </div>
+        <div id="chatMeta" class="chat-meta"></div>
+        <pre id="chatAnswer" class="chat-answer"></pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

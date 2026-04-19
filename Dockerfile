@@ -19,4 +19,4 @@ RUN mkdir -p /app/data /app/outputs
 
 EXPOSE 8011
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8011"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8011", "--proxy-headers", "--forwarded-allow-ips=127.0.0.1"]

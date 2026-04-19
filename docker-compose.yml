@@ -41,8 +41,22 @@ services:
       - ./data:/app/data
       - ./outputs:/app/outputs
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8011/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8011/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    networks:
+      - default
+      - edge_proxy
+
+networks:
+  edge_proxy:
+    external: true
+    name: edge_proxy

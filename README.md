@@ -1,6 +1,86 @@
 # Life Science Watch
 
-Life Science Watch is a local Python + PostgreSQL pipeline that scrapes configured company news sources, stages article content in Postgres, generates AI-assisted summaries, builds DWH views, and publishes a formatted Excel workbook locally and to Google Drive.
+Life Science Watch is a secure news intelligence product for life-science companies. It collects articles from configured corporate sources, stores them in PostgreSQL, enriches them with AI summaries and business tags, exposes reporting views, and publishes a dashboard plus a refreshed Excel deliverable for business users.
+
+## Executive Summary
+
+Life Science Watch automates the end-to-end monitoring of company news across a selected life-science universe. Instead of manually visiting each corporate newsroom, the platform retrieves articles, normalizes the content, enriches it with AI-generated business summaries, and publishes the results through both a web dashboard and a scheduled spreadsheet export.
+
+In practice, it functions as a lightweight competitive-intelligence and business-watch product:
+
+- source monitoring is centralized in PostgreSQL configuration tables
+- scraping runs automatically every day
+- AI turns long-form article content into short business-readable insights
+- reporting views feed both the dashboard and the Excel workbook
+- the latest workbook is automatically shared through Google Drive
+
+## Process Overview
+
+The operational flow is intentionally simple and auditable:
+
+1. Source URLs and run modes are read from `tech.ls_load_sources` and `tech.ls_load_config`.
+2. The scraper loads company newsroom pages and article pages.
+3. Cleaned article records are stored in PostgreSQL staging schemas.
+4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
+5. DWH views assemble the reporting layer for time windows such as week, month, 6 months, and full history.
+6. A formatted Excel workbook is generated from those views.
+7. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
+
+## Architecture
+
+Life Science Watch is built as a small, modular Python product:
+
+- `Python` orchestrates scraping, summarization, export, and automation
+- `PostgreSQL` stores configuration, monitoring, staging data, and summary outputs
+- `FastAPI` serves the dashboard, viewer access flow, and operational endpoints
+- `OpenAI` is used to transform article content into concise business-watch summaries
+- `Excel export` provides a business-friendly deliverable for stakeholders
+- `Google Drive` distributes the latest workbook automatically
+- `Caddy` terminates HTTPS and publishes the site on its own domain
+
+At a high level, the architecture is:
+
+```text
+Configured company sources
+        ->
+Python scraping pipeline
+        ->
+PostgreSQL staging + monitoring + summary tables
+        ->
+DWH reporting views
+        ->
+FastAPI dashboard / Excel export
+        ->
+Google Drive shared workbook + public website
+```
+
+## Security Overview
+
+The product includes a hardened security baseline designed for safe homelab hosting:
+
+- separate `admin` and `viewer` access models
+- dedicated viewer login page instead of passing viewer tokens in the URL
+- secure viewer cookies with explicit lifetime
+- admin-only operational endpoints for status and manual runs
+- public health endpoints for safe uptime checks
+- rate limiting on dashboard and chat traffic
+- trusted-host enforcement for the public domain
+- HTTPS published through the reverse proxy
+- localhost-only app binding on the Lenovo host
+- hardened container settings with dropped Linux capabilities and `no-new-privileges`
+- no long-lived dashboard token persistence in browser `localStorage`
+
+## Dashboard And Website
+
+The website is not a separate frontend application. It is served directly by the FastAPI service:
+
+- HTML templates render the dashboard shell and the viewer login page
+- static CSS and JavaScript provide filtering, cards, and chat interactions
+- dashboard data comes from PostgreSQL reporting views
+- the chat experience reads the current filtered news set and returns company-level answers
+- the public domain `life-science-news.com` is published through Caddy and secured with HTTPS
+
+This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
 
 ## What It Does
 
@@ -50,6 +130,12 @@ make docker-up
 make health
 ```
 
+Run the local test suite:
+
+```bash
+make test
+```
+
 ## Common Commands
 
 Use the `Makefile` for the normal workflow:
@@ -69,6 +155,7 @@ make psql
 What they do:
 
 - `make scrape`: run the scraper pipeline
+- `make test`: run scraper/pipeline push checks
 - `make summarize`: refresh AI and structured summaries
 - `make export`: rebuild the Excel workbook
 - `make sync`: upload the latest workbook to Google Drive
@@ -100,28 +187,101 @@ Manual run:
 
 The local service exposes:
 
+- `GET /health/live`
+- `GET /health/ready`
 - `GET /health`
 - `GET /status`
 - `POST /run`
+- `GET /dashboard`
+- `GET /api/dashboard/news`
+- `POST /api/dashboard/chat`
+- `GET /viewer`
+- `GET /viewer/logout`
 
-All operational endpoints require the `X-Run-Token` header.
+Auth model:
+
+- admin token: full operational access
+- viewer token: read-only dashboard/news access plus chat
+- public: dashboard shell and health endpoints only
+
+Admin auth headers:
+
+- `X-Api-Key: ${API_AUTH_TOKEN}`
+- or `Authorization: Bearer ${API_AUTH_TOKEN}`
+- legacy compatibility: `X-Run-Token: ${LSW_RUN_TOKEN}`
+
+Viewer auth options:
+
+- `X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}`
+- or open `/viewer` and submit the viewer token through the login form
 
 Examples:
 
 ```bash
 source infra/.env
 
-curl http://127.0.0.1:8011/health \
-  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
+curl http://127.0.0.1:8011/health/ready
 
 curl http://127.0.0.1:8011/status \
-  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
+  -H "X-Api-Key: ${API_AUTH_TOKEN}"
 
 curl -X POST http://127.0.0.1:8011/run \
-  -H "X-Run-Token: ${LSW_RUN_TOKEN}"
+  -H "X-Api-Key: ${API_AUTH_TOKEN}"
 ```
 
 FastAPI docs are disabled by default when `API_ENABLE_DOCS=false`.
+
+## Dashboard
+
+Open the local dashboard here:
+
+```bash
+http://127.0.0.1:8011/dashboard
+```
+
+What it includes:
+
+- company dropdown with `ALL` plus the companies present in the `dwh` views
+- period dropdown for `week`, `month`, `6 months`, and `all`
+- filtered news cards backed by the current `dwh` export views
+- a chat panel where the user can ask questions like `what are the news this week?`
+
+Viewer mode:
+
+```bash
+http://127.0.0.1:8011/viewer
+```
+
+That opens a viewer login form, sets a viewer cookie after successful sign-in, and redirects to the dashboard. The dashboard also accepts a pasted viewer or admin token in the access-token box.
+
+## Productization Notes
+
+This repo is now prepared for the same homelab product posture as NASAHub:
+
+- separate admin and viewer tokens
+- viewer cookie flow for shared read-only access
+- public health endpoints for container and reverse-proxy checks
+- rate limiting for dashboard/news/chat traffic
+- trusted-host enforcement via `LISCIHUB_PUBLIC_HOST`
+- hardened container settings:
+  - localhost-only bind
+  - `no-new-privileges`
+  - all Linux capabilities dropped
+  - `/tmp` isolated with `tmpfs`
+  - proxy-header aware Uvicorn for reverse proxy use
+  - no browser `localStorage` token persistence; dashboard access tokens stay in `sessionStorage`
+
+To publish it on its own domain, point your Lenovo reverse proxy at:
+
+```text
+http://127.0.0.1:8011
+```
+
+Then set the public hostname in `infra/.env`:
+
+```dotenv
+LISCIHUB_PUBLIC_HOST=your-domain.example
+```
 
 ## Database Notes
 

@@ -3,12 +3,13 @@
 VENV_PYTHON := .venv/bin/python
 ENV_FILE := infra/.env
 
-.PHONY: help setup install dry-run scrape summarize export sync refresh daily docker-up docker-rebuild docker-restart health status psql
+.PHONY: help setup install test dry-run scrape summarize export sync refresh daily docker-up docker-rebuild docker-restart health status psql
 
 help:
 	@echo "Available targets:"
 	@echo "  setup            Create .venv, copy env template, install dependencies"
 	@echo "  install          Install dependencies into .venv"
+	@echo "  test             Run the local test suite"
 	@echo "  dry-run          Validate configuration and storage without scraping"
 	@echo "  scrape           Run the scraping pipeline"
 	@echo "  summarize        Refresh AI/article summaries"
@@ -30,6 +31,9 @@ setup:
 
 install:
 	$(VENV_PYTHON) -m pip install -r requirements.txt
+
+test:
+	$(VENV_PYTHON) -m unittest discover -s tests -v
 
 dry-run:
 	$(VENV_PYTHON) -m orchestration.LS_MAIN_REFACTORED --dry-run
@@ -62,10 +66,10 @@ docker-restart:
 	docker compose --env-file $(ENV_FILE) restart lifescience_watch
 
 health:
-	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/health -H "X-Run-Token: $$LSW_RUN_TOKEN"'
+	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/health/ready'
 
 status:
-	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/status -H "X-Run-Token: $$LSW_RUN_TOKEN"'
+	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/status -H "X-Api-Key: $$API_AUTH_TOKEN"'
 
 psql:
 	docker exec -it liscihub-postgres psql -U liscihub -d liscihub
