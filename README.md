@@ -324,6 +324,35 @@ Workbook features:
 - wrapped summary text
 - frozen headers and filters
 
+## Priority Score
+
+The reporting layer assigns a `priority_score` to each article so the dashboard and workbook can surface the most material items first.
+
+This score is currently rule-based and is calculated in the SQL reporting view, not directly by the AI model. It uses the structured AI fields first, then falls back to important title keywords.
+
+Current scoring logic:
+
+- `95` for major signals such as `approval`, `acquisition`, `merger`, `trial-readout`, or `earnings`
+- `88` for high-importance topics such as `regulatory`, `m&a`, or `financial`
+- `80` for significant business events such as `partnership`, `plant-expansion`, or `launch`
+- `72` for important but broader themes such as `clinical`, `partnership`, `manufacturing`, or `product`
+- `84` if the article title contains `phase 3`
+- `90` if the title contains `fda`
+- `92` if the title contains `acquisition`
+- `90` if the title contains `earnings`
+- `55` by default for all other articles
+
+Important behavior notes:
+
+- the score is not additive; the first matching rule wins
+- AI-enriched fields are evaluated before title-keyword fallbacks
+- the dashboard and export views sort articles by `priority_score` descending
+- top-news views use thresholds:
+  - weekly top news: `priority_score >= 72`
+  - monthly top news: `priority_score >= 75`
+
+This makes the current score a practical business-importance ranking rather than a probabilistic AI confidence score.
+
 ## Google Drive Sync
 
 The daily pipeline can upload the latest workbook through `rclone`.
