@@ -13,6 +13,11 @@
         <p class="eyebrow">Life Science Watch</p>
         <h1>News Dashboard</h1>
         <p class="subtitle">Filter company news by period, review article-level summaries, and ask a chat agent for a company-by-company briefing.</p>
+        <div class="hero-ribbon">
+          <span>Biopharma intelligence</span>
+          <span>AI summaries</span>
+          <span>Daily refreshed</span>
+        </div>
       </div>
       <div class="hero-card">
         <label for="runToken">Access Token</label>
@@ -51,6 +56,23 @@
       <article class="stat-card">
         <span class="stat-label">Top Topics</span>
         <strong id="topTopics">None</strong>
+      </article>
+    </section>
+
+    <section class="overview-grid">
+      <article class="overview-card">
+        <div class="panel-head">
+          <h2>Company Activity</h2>
+          <p>Most visible names in the current filter window</p>
+        </div>
+        <div id="companyBars" class="bar-list"></div>
+      </article>
+      <article class="overview-card">
+        <div class="panel-head">
+          <h2>Topic Pulse</h2>
+          <p>Quick scan of the dominant themes in the current dataset</p>
+        </div>
+        <div id="topicPulse" class="pulse-grid"></div>
       </article>
     </section>
 

@@ -6,6 +6,8 @@ const articleCount = document.getElementById("articleCount");
 const companyCount = document.getElementById("companyCount");
 const avgPriority = document.getElementById("avgPriority");
 const topTopics = document.getElementById("topTopics");
+const companyBars = document.getElementById("companyBars");
+const topicPulse = document.getElementById("topicPulse");
 const newsRows = document.getElementById("newsRows");
 const newsMeta = document.getElementById("newsMeta");
 const chatButton = document.getElementById("chatButton");
@@ -22,15 +24,15 @@ const defaultPeriods = [
 
 const companyColors = {
   "SANOFI": "#0f5fa8",
-  "SERVIER": "#d97706",
-  "PFIZER": "#0ea5a5",
-  "MODERNA": "#6d28d9",
+  "SERVIER": "#1d4ed8",
+  "PFIZER": "#0891b2",
+  "MODERNA": "#4338ca",
   "VIATRIS": "#2563eb",
-  "OPELLA": "#c2410c",
-  "IPSEN": "#047857",
-  "GALDERMA": "#be185d",
-  "ALLIANCE HEALTHCARE": "#374151",
-  "CEVA SANTE": "#15803d",
+  "OPELLA": "#0369a1",
+  "IPSEN": "#0f766e",
+  "GALDERMA": "#4f46e5",
+  "ALLIANCE HEALTHCARE": "#475569",
+  "CEVA SANTE": "#0284c7",
 };
 
 function getRunToken() {
@@ -117,6 +119,50 @@ function renderRows(rows) {
   });
 }
 
+function renderOverview(rows) {
+  const companyCounts = new Map();
+  const topicCounts = new Map();
+
+  rows.forEach((row) => {
+    if (row.company_name) {
+      companyCounts.set(row.company_name, (companyCounts.get(row.company_name) || 0) + 1);
+    }
+    if (row.key_topic) {
+      topicCounts.set(row.key_topic, (topicCounts.get(row.key_topic) || 0) + 1);
+    }
+  });
+
+  const topCompanies = [...companyCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxCompanyCount = topCompanies[0]?.[1] || 1;
+  companyBars.innerHTML = topCompanies.length
+    ? topCompanies.map(([company, count]) => `
+        <div class="bar-row">
+          <div class="bar-meta">
+            <span>${company}</span>
+            <strong>${count}</strong>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${Math.max((count / maxCompanyCount) * 100, 8)}%; background:${companyColors[company] || "#1d4ed8"}"></div>
+          </div>
+        </div>
+      `).join("")
+    : "<p class='helper'>No company activity to show yet.</p>";
+
+  const topTopicItems = [...topicCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+  topicPulse.innerHTML = topTopicItems.length
+    ? topTopicItems.map(([topic, count]) => `
+        <div class="pulse-chip">
+          <span>${topic}</span>
+          <strong>${count}</strong>
+        </div>
+      `).join("")
+    : "<p class='helper'>No dominant topic detected for the current filter.</p>";
+}
+
 async function loadDashboard() {
   const company = companySelect.value || "ALL";
   const period = periodSelect.value || "week";
@@ -133,6 +179,8 @@ async function loadDashboard() {
       companyCount.textContent = "0";
       avgPriority.textContent = "0";
       topTopics.textContent = "None";
+      companyBars.innerHTML = "<p class='helper'>Sign in to unlock company activity.</p>";
+      topicPulse.innerHTML = "<p class='helper'>Sign in to unlock topic pulse.</p>";
       return;
     }
     throw new Error(payload.detail || "Unable to load dashboard data");
@@ -145,6 +193,7 @@ async function loadDashboard() {
   avgPriority.textContent = payload.summary.avg_priority;
   topTopics.textContent = (payload.summary.top_topics || []).map((item) => item.index || item.key_topic).join(", ") || "None";
   newsMeta.textContent = `${payload.summary.article_count} article(s) loaded`;
+  renderOverview(payload.rows || []);
   renderRows(payload.rows || []);
 }
 
