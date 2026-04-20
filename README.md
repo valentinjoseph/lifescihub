@@ -54,6 +54,8 @@ FastAPI dashboard / Excel export
 Google Drive shared workbook + public website
 ```
 
+For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/liscihub_technical_architecture.md:1).
+
 ## Security Overview
 
 The product includes a hardened security baseline designed for safe homelab hosting:
