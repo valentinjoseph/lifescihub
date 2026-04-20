@@ -2,40 +2,6 @@
 
 This document describes the technical architecture behind Life Science Watch / LISCIHUB. It is intended for engineering reviews, corporate presentations, and handover documentation.
 
-## Downloadable Diagrams
-
-The rendered architecture images are embedded below and can be downloaded directly from the links. Use PNG for slides/docs when possible, or JPEG if a smaller file is preferred.
-
-### End-To-End Architecture
-
-[Download PNG](./01_end_to_end_architecture.png) | [Download JPEG](./01_end_to_end_architecture.jpg)
-
-![End-to-end LISCIHUB architecture](./01_end_to_end_architecture.png)
-
-### Daily Pipeline Flow
-
-[Download PNG](./02_daily_pipeline_flow.png) | [Download JPEG](./02_daily_pipeline_flow.jpg)
-
-![Daily pipeline flow](./02_daily_pipeline_flow.png)
-
-### PostgreSQL Database Layers
-
-[Download PNG](./03_database_layers.png) | [Download JPEG](./03_database_layers.jpg)
-
-![PostgreSQL database layers](./03_database_layers.png)
-
-### Web And Security Path
-
-[Download PNG](./04_web_security_path.png) | [Download JPEG](./04_web_security_path.jpg)
-
-![Web and security path](./04_web_security_path.png)
-
-Regenerate them with:
-
-```bash
-.venv/bin/python docs/architecture/render_architecture_images.py
-```
-
 ## End-To-End System Schema
 
 ```mermaid
