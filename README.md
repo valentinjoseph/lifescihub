@@ -22,7 +22,7 @@ The operational flow is intentionally simple and auditable:
 2. The scraper loads company newsroom pages and article pages.
 3. Cleaned article records are stored in PostgreSQL staging schemas.
 4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
-5. DWH views assemble the reporting layer for time windows such as week, month, 6 months, and full history.
+5. DWH views assemble the reporting layer for time windows such as last 7 days, month, 6 months, and full history.
 6. A formatted Excel workbook is generated from those views.
 7. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
 
@@ -241,10 +241,11 @@ http://127.0.0.1:8011/dashboard
 
 What it includes:
 
-- company dropdown with `ALL` plus the companies present in the `dwh` views
-- period dropdown for `week`, `month`, `6 months`, and `all`
+- company dropdown with `ALL` plus only the companies that have news in the selected period
+- period dropdown for `last 7 days`, `month`, `6 months`, and `all`
 - filtered news cards backed by the current `dwh` export views
-- a chat panel where the user can ask questions like `what are the news this week?`
+- a chat panel where the user can ask questions like `what are the news from the last 7 days?`
+- article sources below each chat answer, including summaries and URLs, so users can verify the agent response against the original material
 
 Viewer mode:
 
@@ -323,6 +324,8 @@ Workbook features:
 - company-colored rows for readability
 - wrapped summary text
 - frozen headers and filters
+
+The dashboard's `Last 7 days` period is a rolling seven-day window, not a calendar week starting on Monday.
 
 ## Priority Score
 

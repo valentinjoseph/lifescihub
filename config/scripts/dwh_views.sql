@@ -117,7 +117,7 @@ WHERE exclusion.id IS NULL;
 CREATE OR REPLACE VIEW dwh.v_news_week AS
 SELECT *
 FROM dwh.v_news_all
-WHERE published_date >= date_trunc('week', now());
+WHERE published_date >= now() - INTERVAL '7 days';
 
 CREATE OR REPLACE VIEW dwh.v_news_month AS
 SELECT *

@@ -14,9 +14,10 @@ const chatButton = document.getElementById("chatButton");
 const chatQuestion = document.getElementById("chatQuestion");
 const chatMeta = document.getElementById("chatMeta");
 const chatAnswer = document.getElementById("chatAnswer");
+const chatSources = document.getElementById("chatSources");
 const TOKEN_STORAGE_KEY = "liscihub_access_token";
 const defaultPeriods = [
-  { value: "week", label: "This week" },
+  { value: "week", label: "Last 7 days" },
   { value: "month", label: "This month" },
   { value: "6_months", label: "Last 6 months" },
   { value: "all", label: "All available" },
@@ -88,6 +89,20 @@ function persistToken() {
   }
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function safeUrl(value) {
+  const url = String(value ?? "");
+  return url.startsWith("http://") || url.startsWith("https://") ? url : "";
+}
+
 function renderRows(rows) {
   newsRows.innerHTML = "";
   if (!rows.length) {
@@ -99,21 +114,22 @@ function renderRows(rows) {
     const item = document.createElement("article");
     item.className = "news-row";
     item.style.borderLeftColor = companyColors[row.company_name] || "#8d99ae";
+    const rowUrl = safeUrl(row.url);
     item.innerHTML = `
       <div class="news-row-head">
         <div>
-          <h3>${row.title || "Untitled article"}</h3>
-          <p class="meta-line">${row.company_name} | ${row.published_date || "No date"} | Priority ${row.priority_score ?? ""}</p>
+          <h3>${escapeHtml(row.title || "Untitled article")}</h3>
+          <p class="meta-line">${escapeHtml(row.company_name)} | ${escapeHtml(row.published_date || "No date")} | Priority ${escapeHtml(row.priority_score ?? "")}</p>
         </div>
       </div>
-      <p>${row.article_summary || ""}</p>
+      <p>${escapeHtml(row.article_summary || "")}</p>
       <div class="tag-row">
-        ${row.key_topic ? `<span class="tag">${row.key_topic}</span>` : ""}
-        ${row.signal_type ? `<span class="tag">${row.signal_type}</span>` : ""}
-        ${row.geography ? `<span class="tag">${row.geography}</span>` : ""}
+        ${row.key_topic ? `<span class="tag">${escapeHtml(row.key_topic)}</span>` : ""}
+        ${row.signal_type ? `<span class="tag">${escapeHtml(row.signal_type)}</span>` : ""}
+        ${row.geography ? `<span class="tag">${escapeHtml(row.geography)}</span>` : ""}
       </div>
-      ${row.business_impact ? `<p><strong>Impact:</strong> ${row.business_impact}</p>` : ""}
-      <a class="news-link" href="${row.url}" target="_blank" rel="noreferrer">Open source</a>
+      ${row.business_impact ? `<p><strong>Impact:</strong> ${escapeHtml(row.business_impact)}</p>` : ""}
+      ${rowUrl ? `<a class="news-link" href="${escapeHtml(rowUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
     `;
     newsRows.appendChild(item);
   });
@@ -140,8 +156,8 @@ function renderOverview(rows) {
     ? topCompanies.map(([company, count]) => `
         <div class="bar-row">
           <div class="bar-meta">
-            <span>${company}</span>
-            <strong>${count}</strong>
+            <span>${escapeHtml(company)}</span>
+            <strong>${escapeHtml(count)}</strong>
           </div>
           <div class="bar-track">
             <div class="bar-fill" style="width:${Math.max((count / maxCompanyCount) * 100, 8)}%; background:${companyColors[company] || "#1d4ed8"}"></div>
@@ -156,11 +172,39 @@ function renderOverview(rows) {
   topicPulse.innerHTML = topTopicItems.length
     ? topTopicItems.map(([topic, count]) => `
         <div class="pulse-chip">
-          <span>${topic}</span>
-          <strong>${count}</strong>
+          <span>${escapeHtml(topic)}</span>
+          <strong>${escapeHtml(count)}</strong>
         </div>
       `).join("")
     : "<p class='helper'>No dominant topic detected for the current filter.</p>";
+}
+
+function renderChatSources(sources) {
+  chatSources.innerHTML = "";
+  if (!sources || !sources.length) {
+    return;
+  }
+
+  const title = document.createElement("h3");
+  title.textContent = "Articles used";
+  chatSources.appendChild(title);
+
+  sources.forEach((source, index) => {
+    const item = document.createElement("article");
+    item.className = "source-card";
+    const sourceUrl = safeUrl(source.url);
+    item.innerHTML = `
+      <div class="source-head">
+        <strong>${index + 1}. ${escapeHtml(source.company_name || "Unknown company")}</strong>
+        <span>${escapeHtml(source.published_date || "No date")} | Priority ${escapeHtml(source.priority_score ?? "")}</span>
+      </div>
+      <p class="source-title">${escapeHtml(source.title || "Untitled article")}</p>
+      ${source.article_summary ? `<p>${escapeHtml(source.article_summary)}</p>` : ""}
+      ${source.business_impact ? `<p><strong>Impact:</strong> ${escapeHtml(source.business_impact)}</p>` : ""}
+      ${sourceUrl ? `<a class="news-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noreferrer">Open source article</a>` : ""}
+    `;
+    chatSources.appendChild(item);
+  });
 }
 
 async function loadDashboard() {
@@ -201,10 +245,12 @@ async function askChat() {
   const question = chatQuestion.value.trim();
   if (!question) {
     chatAnswer.textContent = "Type a question first.";
+    chatSources.innerHTML = "";
     return;
   }
   chatMeta.textContent = "Thinking...";
   chatAnswer.textContent = "";
+  chatSources.innerHTML = "";
   const response = await fetch("/api/dashboard/chat", {
     method: "POST",
     headers: {
@@ -221,11 +267,13 @@ async function askChat() {
     const payload = await response.json().catch(() => ({}));
     chatMeta.textContent = "";
     chatAnswer.textContent = payload.detail || "Unable to answer right now.";
+    chatSources.innerHTML = "";
     return;
   }
   const payload = await response.json();
   chatMeta.textContent = `${payload.article_count} article(s) used | model: ${payload.model}`;
   chatAnswer.textContent = payload.answer || "";
+  renderChatSources(payload.sources || []);
 }
 
 runTokenInput.addEventListener("change", () => {
@@ -233,10 +281,15 @@ runTokenInput.addEventListener("change", () => {
   loadDashboard();
 });
 refreshButton.addEventListener("click", loadDashboard);
+periodSelect.addEventListener("change", () => {
+  companySelect.value = "ALL";
+  loadDashboard();
+});
+companySelect.addEventListener("change", loadDashboard);
 chatButton.addEventListener("click", askChat);
 
 restoreToken();
 initializeFilters();
 loadDashboard().catch((error) => {
-  newsRows.innerHTML = `<div class='news-row'><p class='meta-line'>${error.message}</p></div>`;
+  newsRows.innerHTML = `<div class='news-row'><p class='meta-line'>${escapeHtml(error.message)}</p></div>`;
 });

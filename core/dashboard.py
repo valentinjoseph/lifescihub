@@ -21,7 +21,7 @@ PERIOD_TO_VIEW = {
 }
 
 PERIOD_LABELS = {
-    "week": "This week",
+    "week": "Last 7 days",
     "month": "This month",
     "6_months": "Last 6 months",
     "all": "All available",
@@ -32,13 +32,14 @@ def available_periods() -> list[dict[str, str]]:
     return [{"value": key, "label": label} for key, label in PERIOD_LABELS.items()]
 
 
-def list_companies() -> list[str]:
+def list_companies(period: str = "all") -> list[str]:
+    view_name = _resolve_view(period)
     with engine.begin() as connection:
         rows = connection.execute(
             text(
-                """
+                f"""
                 SELECT DISTINCT company_name
-                FROM dwh.v_news_all_export
+                FROM {view_name}
                 ORDER BY company_name
                 """
             )
@@ -87,13 +88,17 @@ def fetch_news(company_name: str | None = None, period: str = "week", limit: int
 
 
 def fetch_dashboard_payload(company_name: str | None = None, period: str = "week", limit: int = 200) -> dict[str, Any]:
-    news_df = fetch_news(company_name=company_name, period=period, limit=limit)
-    companies = list_companies()
+    companies = list_companies(period=period)
+    selected_company = company_name or "ALL"
+    if selected_company.upper() != "ALL" and selected_company not in companies:
+        selected_company = "ALL"
+
+    news_df = fetch_news(company_name=selected_company, period=period, limit=limit)
 
     if news_df.empty:
         return {
             "filters": {
-                "selected_company": company_name or "ALL",
+                "selected_company": selected_company,
                 "selected_period": period,
                 "companies": ["ALL", *companies],
                 "periods": available_periods(),
@@ -124,7 +129,7 @@ def fetch_dashboard_payload(company_name: str | None = None, period: str = "week
 
     return {
         "filters": {
-            "selected_company": company_name or "ALL",
+            "selected_company": selected_company,
             "selected_period": period,
             "companies": ["ALL", *companies],
             "periods": available_periods(),
@@ -176,6 +181,28 @@ def _fallback_chat_answer(question: str, articles: pd.DataFrame, company_name: s
     return "\n".join(lines).strip()
 
 
+def _article_sources(articles: pd.DataFrame, limit: int = 12) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    if articles.empty:
+        return sources
+
+    for item in articles.head(limit).to_dict(orient="records"):
+        published_date = item.get("published_date")
+        date_label = published_date.strftime("%Y-%m-%d") if hasattr(published_date, "strftime") else str(published_date or "")
+        sources.append(
+            {
+                "company_name": item.get("company_name", ""),
+                "published_date": date_label,
+                "title": item.get("title", ""),
+                "article_summary": item.get("article_summary", ""),
+                "business_impact": item.get("business_impact", ""),
+                "priority_score": item.get("priority_score", ""),
+                "url": item.get("url", ""),
+            }
+        )
+    return sources
+
+
 def chat_about_news(question: str, company_name: str | None = None, period: str = "week", limit: int = 60) -> dict[str, Any]:
     articles = fetch_news(company_name=company_name, period=period, limit=limit)
     api_key = os.getenv("OPENAI_API_KEY")
@@ -186,6 +213,7 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
             "answer": _fallback_chat_answer(question, articles, company_name, period),
             "model": "fallback-dashboard-v1",
             "article_count": 0,
+            "sources": [],
         }
 
     if not api_key:
@@ -193,6 +221,7 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
             "answer": _fallback_chat_answer(question, articles, company_name, period),
             "model": "fallback-dashboard-v1",
             "article_count": int(len(articles)),
+            "sources": _article_sources(articles),
         }
 
     client = OpenAI(api_key=api_key)
@@ -232,4 +261,5 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
         "answer": response.output_text.strip(),
         "model": model,
         "article_count": int(len(articles)),
+        "sources": _article_sources(articles),
     }
