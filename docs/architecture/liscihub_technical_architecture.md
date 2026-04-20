@@ -2,6 +2,21 @@
 
 This document describes the technical architecture behind Life Science Watch / LISCIHUB. It is intended for engineering reviews, corporate presentations, and handover documentation.
 
+## Downloadable Image Files
+
+The diagrams are also available as PNG and JPEG files for PowerPoint or document reuse:
+
+- End-to-end architecture: [PNG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/01_end_to_end_architecture.png) | [JPEG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/01_end_to_end_architecture.jpg)
+- Daily pipeline flow: [PNG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/02_daily_pipeline_flow.png) | [JPEG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/02_daily_pipeline_flow.jpg)
+- PostgreSQL database layers: [PNG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/03_database_layers.png) | [JPEG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/03_database_layers.jpg)
+- Web and security path: [PNG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/04_web_security_path.png) | [JPEG](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/04_web_security_path.jpg)
+
+Regenerate them with:
+
+```bash
+.venv/bin/python docs/architecture/render_architecture_images.py
+```
+
 ## End-To-End System Schema
 
 ```mermaid
