@@ -41,6 +41,7 @@ flowchart LR
         Tech["tech schema<br/>config, monitoring, summaries"]
         Staging["stg_ls_* schemas<br/>company staging tables"]
         DWH["dwh schema<br/>reporting/export views"]
+        DEA["dea schema<br/>decision-ready consumption marts"]
     end
 
     subgraph AI["AI enrichment"]
@@ -75,7 +76,10 @@ flowchart LR
     Staging --> DWH
     Tech --> DWH
     ViewsSQL --> DWH
+    DWH --> DEA
+    ViewsSQL --> DEA
     DWH --> Exporter
+    DEA --> Exporter
     Exporter --> Workbook
     Exporter --> Archive
     DriveSync --> GDrive
@@ -86,6 +90,7 @@ flowchart LR
     Postgres --> Tech
     Postgres --> Staging
     Postgres --> DWH
+    Postgres --> DEA
     App --> Dashboard
     App --> Viewer
 

@@ -11,7 +11,8 @@ In practice, it functions as a lightweight competitive-intelligence and business
 - source monitoring is centralized in PostgreSQL configuration tables
 - scraping runs automatically every day
 - AI turns long-form article content into short business-readable insights
-- reporting views feed both the dashboard and the Excel workbook
+- DWH views feed both the dashboard and DEA consumption marts
+- DEA views provide executive KPIs, company intelligence, topic/signal heatmaps, and priority news feeds
 - the latest workbook is automatically shared through Google Drive
 
 ## Process Overview
@@ -22,9 +23,10 @@ The operational flow is intentionally simple and auditable:
 2. The scraper loads company newsroom pages and article pages.
 3. Cleaned article records are stored in PostgreSQL staging schemas.
 4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
-5. DWH views assemble the reporting layer for time windows such as last 7 days, month, 6 months, and full history.
-6. A formatted Excel workbook is generated from those views.
-7. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
+5. DWH views assemble the article-level reporting layer for time windows such as last 7 days, month, 6 months, and full history.
+6. DEA views assemble decision-ready consumption marts from the DWH layer.
+7. A formatted Excel workbook is generated from those views.
+8. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
 
 ## Architecture
 
@@ -48,6 +50,8 @@ Python scraping pipeline
 PostgreSQL staging + monitoring + summary tables
         ->
 DWH reporting views
+        ->
+DEA consumption marts
         ->
 FastAPI dashboard / Excel export
         ->
@@ -91,7 +95,8 @@ This makes the product easy to operate: one Python application powers the API, t
 - scrapes listing pages and article pages
 - stores staged articles in company-specific schemas
 - generates AI summaries plus structured fields like topic and business impact
-- exposes DWH views for reporting
+- exposes DWH views for article-level reporting
+- exposes DEA views for decision-ready consumption marts
 - exports a styled Excel workbook
 - uploads the latest workbook to Google Drive
 
@@ -104,7 +109,7 @@ lifescience_watch/
 ├── core/                       Scraper, monitoring, runtime config
 ├── db/                         PostgreSQL helpers and Alembic migrations
 ├── config/                     Runtime config loader and SQL assets
-│   └── scripts/                DWH views and seed SQL
+│   └── scripts/                DWH and DEA views plus seed SQL
 ├── orchestration/              Main pipeline entrypoint
 ├── scripts/                    Summaries, export, sync, and daily runner
 ├── infra/                      Local env files
@@ -318,10 +323,15 @@ The exporter uses reader-friendly views:
 - `dwh.v_news_month_export`
 - `dwh.v_news_6_months_export`
 - `dwh.v_news_all_export`
+- `dea.v_kpi_overview`
+- `dea.v_company_intelligence`
+- `dea.v_topic_signal_heatmap`
+- `dea.v_executive_news_feed`
 
 Workbook features:
 
 - overview sheets for company, topic, and signal counts
+- DEA sheets for executive KPIs, company intelligence, topic/signal heatmaps, and priority news feeds
 - top-news tabs sorted by priority
 - company-colored rows for readability
 - wrapped summary text
@@ -391,7 +401,7 @@ make refresh
 - [scripts/generate_article_summaries.py](/home/hl-lenovo/projects/lifescience_watch/scripts/generate_article_summaries.py:1): AI summary refresh
 - [scripts/export_dwh_views.py](/home/hl-lenovo/projects/lifescience_watch/scripts/export_dwh_views.py:1): workbook export
 - [scripts/run_daily_pipeline.sh](/home/hl-lenovo/projects/lifescience_watch/scripts/run_daily_pipeline.sh:1): scheduled end-to-end runner
-- [config/scripts/dwh_views.sql](/home/hl-lenovo/projects/lifescience_watch/config/scripts/dwh_views.sql:1): reporting views
+- [config/scripts/dwh_views.sql](/home/hl-lenovo/projects/lifescience_watch/config/scripts/dwh_views.sql:1): DWH reporting views and DEA consumption marts
 - [infra/.env.example](/home/hl-lenovo/projects/lifescience_watch/infra/.env.example:1): safe env template
 
 ## Notes

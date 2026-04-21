@@ -48,6 +48,7 @@ flowchart LR
         Tech["tech schema<br/>config, monitoring, summaries"]
         Staging["stg_ls_* schemas<br/>company staging tables"]
         DWH["dwh schema<br/>reporting/export views"]
+        DEA["dea schema<br/>decision-ready consumption marts"]
     end
 
     subgraph AI["AI enrichment"]
@@ -163,6 +164,13 @@ flowchart TB
         ExportViews["*_export views<br/>dashboard + workbook columns"]
     end
 
+    subgraph DEA["dea schema"]
+        Kpis["v_kpi_overview"]
+        CompanyIntel["v_company_intelligence"]
+        TopicSignals["v_topic_signal_heatmap"]
+        ExecFeed["v_executive_news_feed"]
+    end
+
     LoadSources --> Staging
     LoadConfig --> Staging
     ScrapingConfig --> Staging
@@ -178,6 +186,10 @@ flowchart TB
     Week --> ExportViews
     Month --> ExportViews
     SixMonths --> ExportViews
+    All --> Kpis
+    All --> CompanyIntel
+    Month --> TopicSignals
+    Month --> ExecFeed
     TopWeek --> ExportViews
     TopMonth --> ExportViews
 ```
@@ -234,7 +246,7 @@ flowchart LR
 | Ingestion | `orchestration/LS_MAIN_REFACTORED.py` | Main scrape pipeline and company-level loading |
 | Scraping | `core/scraper.py`, `utils/*` | Source fetch, robots handling, URL extraction, article parsing |
 | AI | `scripts/generate_article_summaries.py` | OpenAI-backed summaries and structured business-watch fields |
-| Reporting | `config/scripts/dwh_views.sql` | DWH views, priority score, top-news/export views |
+| Reporting | `config/scripts/dwh_views.sql` | DWH views, priority score, top-news/export views, and DEA consumption marts |
 | Export | `scripts/export_dwh_views.py` | Styled Excel workbook generation |
 | Distribution | `scripts/upload_export_to_gdrive.sh` | `rclone` upload to Google Drive |
 | Public site | Caddy + Hostinger DNS | HTTPS reverse proxy and public domain |

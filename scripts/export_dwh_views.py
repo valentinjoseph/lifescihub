@@ -31,6 +31,25 @@ VIEW_SHEETS: list[tuple[str, str]] = [
     ("dwh.v_news_all_export", "news_all"),
 ]
 
+DEA_VIEW_SHEETS: list[tuple[str, str, str]] = [
+    ("dea.v_kpi_overview", "dea_kpis", "ORDER BY metric"),
+    (
+        "dea.v_company_intelligence",
+        "dea_company",
+        "ORDER BY high_priority_last_30_days DESC, articles_last_30_days DESC, company_name",
+    ),
+    (
+        "dea.v_topic_signal_heatmap",
+        "dea_topic_signal",
+        "ORDER BY high_priority_last_30_days DESC, articles_last_30_days DESC, key_topic, signal_type",
+    ),
+    (
+        "dea.v_executive_news_feed",
+        "dea_exec_feed",
+        "ORDER BY priority_score DESC NULLS LAST, published_date DESC NULLS LAST, company_name, title",
+    ),
+]
+
 COMPANY_COLORS = {
     "ALLIANCE HEALTHCARE": "D8EAF7",
     "ASTERA": "DFF2E1",
@@ -57,8 +76,10 @@ COMPANY_COLORS = {
 }
 
 
-def fetch_view(view_name: str) -> pd.DataFrame:
-    order_clause = "ORDER BY priority_score DESC NULLS LAST, published_date DESC NULLS LAST, company_name, title"
+def fetch_view(
+    view_name: str,
+    order_clause: str = "ORDER BY priority_score DESC NULLS LAST, published_date DESC NULLS LAST, company_name, title",
+) -> pd.DataFrame:
     with engine.begin() as connection:
         frame = pd.read_sql_query(
             text(f"SELECT * FROM {view_name} {order_clause}"),
@@ -169,8 +190,22 @@ def style_sheet(writer: pd.ExcelWriter, sheet_name: str, frame: pd.DataFrame, co
         "url": 44,
         "summary_status": 14,
         "metric": 28,
+        "metric_label": 52,
         "value": 22,
+        "numeric_value": 16,
+        "metric_value": 16,
         "article_count": 14,
+        "articles_all": 12,
+        "articles_last_7_days": 18,
+        "articles_last_30_days": 18,
+        "articles_last_6_months": 20,
+        "high_priority_last_30_days": 24,
+        "avg_priority_last_30_days": 22,
+        "top_priority_score_30_days": 24,
+        "leading_topic_last_30_days": 26,
+        "leading_signal_last_30_days": 26,
+        "attention_level": 16,
+        "priority_band": 14,
     }
 
     for idx, column_name in enumerate(frame.columns, start=1):
@@ -196,12 +231,21 @@ def export_workbook(output_dir: Path) -> tuple[Path, Path, dict[str, int]]:
     for view_name, sheet_name in VIEW_SHEETS:
         frames[sheet_name] = normalize_datetimes(fetch_view(view_name))
 
+    dea_frames: dict[str, pd.DataFrame] = {}
+    for view_name, sheet_name, order_clause in DEA_VIEW_SHEETS:
+        dea_frames[sheet_name] = normalize_datetimes(fetch_view(view_name, order_clause))
+
     summary_frames = build_overview_frames(frames)
 
     with pd.ExcelWriter(latest_path, engine="openpyxl") as writer:
         for sheet_name, frame in summary_frames.items():
             frame.to_excel(writer, sheet_name=sheet_name, index=False)
             style_sheet(writer, sheet_name, frame, color_by_company=sheet_name == "company_summary")
+            sheet_counts[sheet_name] = len(frame.index)
+
+        for sheet_name, frame in dea_frames.items():
+            frame.to_excel(writer, sheet_name=sheet_name, index=False)
+            style_sheet(writer, sheet_name, frame, color_by_company="company_name" in frame.columns)
             sheet_counts[sheet_name] = len(frame.index)
 
         for _, sheet_name in VIEW_SHEETS:
@@ -215,6 +259,7 @@ def export_workbook(output_dir: Path) -> tuple[Path, Path, dict[str, int]]:
                 {"key": "generated_at_utc", "value": datetime.now(UTC).isoformat()},
                 {"key": "source_database", "value": engine.url.render_as_string(hide_password=True)},
                 {"key": "views_exported", "value": ", ".join(view for view, _ in VIEW_SHEETS)},
+                {"key": "dea_views_exported", "value": ", ".join(view for view, _, _ in DEA_VIEW_SHEETS)},
             ]
         )
         metadata.to_excel(writer, sheet_name="export_info", index=False)
