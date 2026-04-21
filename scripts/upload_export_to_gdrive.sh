@@ -2,9 +2,15 @@
 
 set -Eeuo pipefail
 
-PROJECT_ROOT="/home/hl-lenovo/projects/lifescience_watch"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPORT_DIR="${PROJECT_ROOT}/exports"
 LATEST_FILE="${EXPORT_DIR}/lifescience_watch_news_latest.xlsx"
+
+if [[ -f "${PROJECT_ROOT}/infra/.env" ]]; then
+  set -a
+  source "${PROJECT_ROOT}/infra/.env"
+  set +a
+fi
 
 enabled="${GDRIVE_UPLOAD_ENABLED:-false}"
 remote="${GDRIVE_REMOTE:-}"

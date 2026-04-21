@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-PROJECT_ROOT="/home/hl-lenovo/projects/lifescience_watch"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${PROJECT_ROOT}/outputs"
 LOCK_FILE="${PROJECT_ROOT}/outputs/run_daily_pipeline.lock"
 
@@ -13,6 +13,12 @@ cd "${PROJECT_ROOT}"
 set -a
 source "${PROJECT_ROOT}/infra/.env"
 set +a
+
+if [[ ! -f "${PROJECT_ROOT}/.venv/bin/activate" ]]; then
+  echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') virtualenv not found at ${PROJECT_ROOT}/.venv"
+  echo "Run 'make setup' from ${PROJECT_ROOT} first."
+  exit 1
+fi
 
 source "${PROJECT_ROOT}/.venv/bin/activate"
 

@@ -38,7 +38,7 @@ Life Science Watch is built as a small, modular Python product:
 - `OpenAI` is used to transform article content into concise business-watch summaries
 - `Excel export` provides a business-friendly deliverable for stakeholders
 - `Google Drive` distributes the latest workbook automatically
-- `Caddy` terminates HTTPS and publishes the site on its own domain
+- an optional reverse proxy can terminate HTTPS and publish the site on your own domain
 
 At a high level, the architecture is:
 
@@ -58,7 +58,7 @@ FastAPI dashboard / Excel export
 Google Drive shared workbook + public website
 ```
 
-For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](/home/hl-lenovo/projects/lifescience_watch/docs/architecture/liscihub_technical_architecture.md:1).
+For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](docs/architecture/liscihub_technical_architecture.md).
 
 ## Security Overview
 
@@ -70,9 +70,9 @@ The product includes a hardened security baseline designed for safe homelab host
 - admin-only operational endpoints for status and manual runs
 - public health endpoints for safe uptime checks
 - rate limiting on dashboard and chat traffic
-- trusted-host enforcement for the public domain
+- trusted-host enforcement for the configured public domain
 - HTTPS published through the reverse proxy
-- localhost-only app binding on the Lenovo host
+- localhost-only app and database bindings by default
 - hardened container settings with dropped Linux capabilities and `no-new-privileges`
 - no long-lived dashboard token persistence in browser `localStorage`
 
@@ -84,7 +84,7 @@ The website is not a separate frontend application. It is served directly by the
 - static CSS and JavaScript provide filtering, cards, and chat interactions
 - dashboard data comes from PostgreSQL reporting views
 - the chat experience reads the current filtered news set and returns company-level answers
-- the public domain `life-science-news.com` is published through Caddy and secured with HTTPS
+- a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
 
 This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
 
@@ -122,12 +122,13 @@ lifescience_watch/
 ## Quick Start
 
 ```bash
-cd /home/hl-lenovo/projects/lifescience_watch
+git clone <repo-url> lifescience_watch
+cd lifescience_watch
 make setup
 source .venv/bin/activate
 ```
 
-Fill in `infra/.env` after copying from `infra/.env.example`.
+`make setup` creates `.venv`, installs dependencies, and copies `infra/.env.example` to `infra/.env` if it does not exist. Fill in `infra/.env` before starting the stack.
 
 Useful first checks:
 
@@ -135,6 +136,12 @@ Useful first checks:
 make dry-run
 make docker-up
 make health
+```
+
+After the first successful scrape or legacy-data bootstrap, apply the reporting views:
+
+```bash
+make db-views
 ```
 
 Run the local test suite:
@@ -151,6 +158,7 @@ Use the `Makefile` for the normal workflow:
 make help
 make scrape
 make summarize
+make db-views
 make export
 make sync
 make refresh
@@ -164,6 +172,7 @@ What they do:
 - `make scrape`: run the scraper pipeline
 - `make test`: run scraper/pipeline push checks
 - `make summarize`: refresh AI and structured summaries
+- `make db-views`: create or refresh DWH and DEA SQL views in PostgreSQL
 - `make export`: rebuild the Excel workbook
 - `make sync`: upload the latest workbook to Google Drive
 - `make refresh`: summarize + export + sync
@@ -178,11 +187,13 @@ The daily scheduled job runs:
 3. workbook export
 4. Google Drive upload
 
-Current cron target:
+Portable cron example:
 
 ```cron
-0 8 * * * /bin/bash /home/hl-lenovo/projects/lifescience_watch/scripts/run_daily_pipeline.sh >> /home/hl-lenovo/projects/lifescience_watch/outputs/run_daily_pipeline.log 2>&1
+0 8 * * * cd /path/to/lifescience_watch && /bin/bash scripts/run_daily_pipeline.sh >> outputs/run_daily_pipeline.log 2>&1
 ```
+
+The script resolves the repository root from its own location, so it does not require the project to live under a specific username or host path.
 
 Manual run:
 
@@ -226,13 +237,14 @@ Examples:
 
 ```bash
 source infra/.env
+BASE_URL="http://127.0.0.1:${API_BIND_PORT:-8011}"
 
-curl http://127.0.0.1:8011/health/ready
+curl "${BASE_URL}/health/ready"
 
-curl http://127.0.0.1:8011/status \
+curl "${BASE_URL}/status" \
   -H "X-Api-Key: ${API_AUTH_TOKEN}"
 
-curl -X POST http://127.0.0.1:8011/run \
+curl -X POST "${BASE_URL}/run" \
   -H "X-Api-Key: ${API_AUTH_TOKEN}"
 ```
 
@@ -243,8 +255,11 @@ FastAPI docs are disabled by default when `API_ENABLE_DOCS=false`.
 Open the local dashboard here:
 
 ```bash
-http://127.0.0.1:8011/dashboard
+source infra/.env
+echo "http://127.0.0.1:${API_BIND_PORT:-8011}/dashboard"
 ```
+
+With the default `API_BIND_PORT=8011`, that is `http://127.0.0.1:8011/dashboard`.
 
 What it includes:
 
@@ -257,14 +272,17 @@ What it includes:
 Viewer mode:
 
 ```bash
-http://127.0.0.1:8011/viewer
+source infra/.env
+echo "http://127.0.0.1:${API_BIND_PORT:-8011}/viewer"
 ```
+
+With the default `API_BIND_PORT=8011`, that is `http://127.0.0.1:8011/viewer`.
 
 That opens a viewer login form, sets a viewer cookie after successful sign-in, and redirects to the dashboard. The dashboard also accepts a pasted viewer or admin token in the access-token box.
 
 ## Productization Notes
 
-This repo is now prepared for the same homelab product posture as NASAHub:
+This repo is prepared for local development, homelab hosting, or small-server deployment:
 
 - separate admin and viewer tokens
 - viewer cookie flow for shared read-only access
@@ -272,18 +290,20 @@ This repo is now prepared for the same homelab product posture as NASAHub:
 - rate limiting for dashboard/news/chat traffic
 - trusted-host enforcement via `LISCIHUB_PUBLIC_HOST`
 - hardened container settings:
-  - localhost-only bind
+  - localhost-only bind by default
   - `no-new-privileges`
   - all Linux capabilities dropped
   - `/tmp` isolated with `tmpfs`
   - proxy-header aware Uvicorn for reverse proxy use
   - no browser `localStorage` token persistence; dashboard access tokens stay in `sessionStorage`
 
-To publish it on its own domain, point your Lenovo reverse proxy at:
+To publish it on your own domain, point your reverse proxy at the local app port:
 
 ```text
-http://127.0.0.1:8011
+http://127.0.0.1:${API_BIND_PORT:-8011}
 ```
+
+Use the concrete value from `infra/.env` in your proxy config, for example `http://127.0.0.1:8011` when `API_BIND_PORT=8011`.
 
 Then set the public hostname in `infra/.env`:
 
@@ -298,15 +318,20 @@ Connection defaults:
 - database: `liscihub`
 - schema: `tech`
 - postgres container: `liscihub-postgres`
-- host port: `5434`
+- host port: value of `POSTGRES_PORT` in `infra/.env`; default `5434`
 
-DBeaver over SSH tunnel:
+DBeaver on the same machine:
 
 - host: `127.0.0.1`
-- port: `5434`
+- port: value of `POSTGRES_PORT`; default `5434`
 - database: `liscihub`
 - username: `liscihub`
 - password: value of `POSTGRES_PASSWORD` in `infra/.env`
+
+DBeaver from another workstation:
+
+- create an SSH tunnel to the deployment host that forwards your local port to `127.0.0.1:${POSTGRES_PORT:-5434}` on the host
+- connect DBeaver to the local tunnel endpoint with the same database, username, and password values
 
 ## Reporting Outputs
 
@@ -385,7 +410,7 @@ Typical setup:
 sudo apt-get update
 sudo apt-get install -y rclone
 rclone config
-rclone lsd gdrive-liscihub:
+rclone lsd <your-rclone-remote>:
 ```
 
 Then enable upload in `infra/.env` and run:
@@ -396,16 +421,16 @@ make refresh
 
 ## Important Files
 
-- [orchestration/LS_MAIN_REFACTORED.py](/home/hl-lenovo/projects/lifescience_watch/orchestration/LS_MAIN_REFACTORED.py:1): main pipeline entrypoint
-- [core/scraper.py](/home/hl-lenovo/projects/lifescience_watch/core/scraper.py:1): scrape logic
-- [scripts/generate_article_summaries.py](/home/hl-lenovo/projects/lifescience_watch/scripts/generate_article_summaries.py:1): AI summary refresh
-- [scripts/export_dwh_views.py](/home/hl-lenovo/projects/lifescience_watch/scripts/export_dwh_views.py:1): workbook export
-- [scripts/run_daily_pipeline.sh](/home/hl-lenovo/projects/lifescience_watch/scripts/run_daily_pipeline.sh:1): scheduled end-to-end runner
-- [config/scripts/dwh_views.sql](/home/hl-lenovo/projects/lifescience_watch/config/scripts/dwh_views.sql:1): DWH reporting views and DEA consumption marts
-- [infra/.env.example](/home/hl-lenovo/projects/lifescience_watch/infra/.env.example:1): safe env template
+- [orchestration/LS_MAIN_REFACTORED.py](orchestration/LS_MAIN_REFACTORED.py): main pipeline entrypoint
+- [core/scraper.py](core/scraper.py): scrape logic
+- [scripts/generate_article_summaries.py](scripts/generate_article_summaries.py): AI summary refresh
+- [scripts/export_dwh_views.py](scripts/export_dwh_views.py): workbook export
+- [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
+- [config/scripts/dwh_views.sql](config/scripts/dwh_views.sql): DWH reporting views and DEA consumption marts
+- [infra/.env.example](infra/.env.example): safe env template
 
 ## Notes
 
 - Some sites still use anti-bot or challenge pages, so extraction quality varies by source.
 - `data/*.csv` and `data/lifescience_watch.db` remain as bootstrap/local compatibility assets.
-- The repo is designed to run locally on the Lenovo homelab, with VS Code over SSH as the main development workflow.
+- The repo is designed to run from any checkout path. Keep machine-specific values in `infra/.env`, cron entries, reverse-proxy config, and rclone config rather than committing them to source files.

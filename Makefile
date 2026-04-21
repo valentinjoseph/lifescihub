@@ -3,7 +3,7 @@
 VENV_PYTHON := .venv/bin/python
 ENV_FILE := infra/.env
 
-.PHONY: help setup install test dry-run scrape summarize export sync refresh daily docker-up docker-rebuild docker-restart health status psql
+.PHONY: help setup install test dry-run scrape summarize db-views export sync refresh daily docker-up docker-rebuild docker-restart health status psql
 
 help:
 	@echo "Available targets:"
@@ -13,6 +13,7 @@ help:
 	@echo "  dry-run          Validate configuration and storage without scraping"
 	@echo "  scrape           Run the scraping pipeline"
 	@echo "  summarize        Refresh AI/article summaries"
+	@echo "  db-views         Apply DWH and DEA reporting views"
 	@echo "  export           Rebuild the Excel workbook"
 	@echo "  sync             Upload the latest workbook to Google Drive"
 	@echo "  refresh          Run summarize + export + Google Drive sync"
@@ -44,6 +45,9 @@ scrape:
 summarize:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py
 
+db-views:
+	@bash -lc 'source $(ENV_FILE) && docker exec -i liscihub-postgres psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1' < config/scripts/dwh_views.sql
+
 export:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/export_dwh_views.py
 
@@ -66,10 +70,10 @@ docker-restart:
 	docker compose --env-file $(ENV_FILE) restart lifescience_watch
 
 health:
-	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/health/ready'
+	@bash -lc 'source $(ENV_FILE) && curl -s "http://127.0.0.1:$${API_BIND_PORT:-8011}/health/ready"'
 
 status:
-	@bash -lc 'source $(ENV_FILE) && curl -s http://127.0.0.1:8011/status -H "X-Api-Key: $$API_AUTH_TOKEN"'
+	@bash -lc 'source $(ENV_FILE) && curl -s "http://127.0.0.1:$${API_BIND_PORT:-8011}/status" -H "X-Api-Key: $$API_AUTH_TOKEN"'
 
 psql:
 	docker exec -it liscihub-postgres psql -U liscihub -d liscihub

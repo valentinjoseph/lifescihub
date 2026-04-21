@@ -6,11 +6,11 @@ This document describes the technical architecture behind Life Science Watch / L
 
 ```mermaid
 flowchart LR
-    subgraph Admin["Admin workstation: Mac"]
-        VSCode["VS Code over SSH"]
+    subgraph Admin["Developer workstation"]
+        VSCode["Editor or terminal"]
         Browser["Browser dashboard access"]
-        DBeaver["DBeaver via SSH tunnel"]
-        Terminal["Terminal / SSH"]
+        DBeaver["DBeaver<br/>local or SSH tunnel"]
+        Terminal["Terminal / optional SSH"]
     end
 
     subgraph Sources["External company sources"]
@@ -19,7 +19,7 @@ flowchart LR
         Robots["robots.txt / source constraints"]
     end
 
-    subgraph Lenovo["Lenovo Ubuntu Server"]
+    subgraph Host["Local or deployment host"]
         Cron["Host cron<br/>08:00 UTC daily"]
         Runner["scripts/run_daily_pipeline.sh<br/>flock-protected runner"]
 
@@ -57,7 +57,7 @@ flowchart LR
 
     subgraph Delivery["Delivery layer"]
         Caddy["Caddy reverse proxy<br/>HTTPS termination"]
-        Hostinger["Hostinger DNS<br/>life-science-news.com"]
+        DNS["DNS provider<br/>your-domain.example"]
         Dashboard["Web dashboard<br/>filters + news cards + chat"]
         Viewer["Viewer login<br/>secure read-only cookie"]
         GDrive["Google Drive<br/>shared Excel workbook"]
@@ -65,8 +65,8 @@ flowchart LR
     end
 
     VSCode --> Terminal
-    Terminal --> Lenovo
-    DBeaver -->|SSH tunnel 5434| Postgres
+    Terminal --> Host
+    DBeaver -->|local port or SSH tunnel| Postgres
     Browser --> Dashboard
 
     Cron --> Runner
@@ -83,7 +83,10 @@ flowchart LR
     Staging --> DWH
     Tech --> DWH
     ViewsSQL --> DWH
+    DWH --> DEA
+    ViewsSQL --> DEA
     DWH --> Exporter
+    DEA --> Exporter
     Exporter --> Workbook
     Exporter --> Archive
     DriveSync --> GDrive
@@ -94,12 +97,14 @@ flowchart LR
     Postgres --> Tech
     Postgres --> Staging
     Postgres --> DWH
+    Postgres --> DEA
     App --> Dashboard
     App --> Viewer
 
-    Hostinger --> Caddy
+    DNS --> Caddy
     Caddy -->|edge_proxy Docker network| App
     Dashboard --> DWH
+    Dashboard --> DEA
 ```
 
 ## Daily Pipeline Flow
@@ -127,7 +132,7 @@ sequenceDiagram
     AI->>AI: Generate summary, topic, impact, geography, signal
     AI->>PG: Upsert tech.ls_article_summary
     Runner->>Export: python scripts/export_dwh_views.py
-    Export->>PG: Read dwh export views
+    Export->>PG: Read dwh and dea export views
     Export->>Export: Build styled Excel workbook
     Export->>Drive: ./scripts/upload_export_to_gdrive.sh
     Drive-->>Runner: Upload complete
@@ -201,11 +206,11 @@ flowchart LR
     subgraph Public["Public internet"]
         User["Viewer / stakeholder browser"]
         Admin["Admin browser / SSH"]
-        Domain["life-science-news.com<br/>Hostinger DNS"]
+        Domain["your-domain.example<br/>DNS provider"]
     end
 
-    subgraph Edge["Lenovo edge"]
-        Caddy["nasahub-caddy<br/>HTTPS, HSTS, reverse proxy"]
+    subgraph Edge["Reverse proxy host"]
+        Caddy["Caddy or another proxy<br/>HTTPS, HSTS, reverse proxy"]
         EdgeNet["edge_proxy Docker network"]
     end
 
@@ -239,8 +244,8 @@ flowchart LR
 
 | Layer | Component | Responsibility |
 | --- | --- | --- |
-| Admin | Mac + VS Code SSH | Remote development and operational control |
-| Host | Lenovo Ubuntu Server | Runs Docker, Postgres, cron, exports, and proxy integration |
+| Admin | Developer workstation | Local or remote development and operational control |
+| Host | Local machine or deployment server | Runs Docker, Postgres, cron, exports, and optional proxy integration |
 | App | `lifescience_watch` container | FastAPI dashboard, API, chat, and operational endpoints |
 | Database | `liscihub-postgres` | Dedicated PostgreSQL database for LISCIHUB |
 | Ingestion | `orchestration/LS_MAIN_REFACTORED.py` | Main scrape pipeline and company-level loading |
@@ -249,11 +254,11 @@ flowchart LR
 | Reporting | `config/scripts/dwh_views.sql` | DWH views, priority score, top-news/export views, and DEA consumption marts |
 | Export | `scripts/export_dwh_views.py` | Styled Excel workbook generation |
 | Distribution | `scripts/upload_export_to_gdrive.sh` | `rclone` upload to Google Drive |
-| Public site | Caddy + Hostinger DNS | HTTPS reverse proxy and public domain |
+| Public site | Reverse proxy + DNS provider | Optional HTTPS reverse proxy and public domain |
 
 ## Operational Notes
 
-- The scheduled job runs at `08:00 UTC` from the Lenovo host crontab.
+- The scheduled job runs at `08:00 UTC` from the host crontab when cron is configured.
 - `week` in the dashboard means a rolling last-7-days window, not a Monday-start calendar week.
 - The app is bound locally and reached publicly only through the reverse proxy path.
 - Viewer access uses a login form and secure cookie; admin operations require the admin token.

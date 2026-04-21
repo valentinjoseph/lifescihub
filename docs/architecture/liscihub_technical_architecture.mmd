@@ -1,9 +1,9 @@
 flowchart LR
-    subgraph Admin["Admin workstation: Mac"]
-        VSCode["VS Code over SSH"]
+    subgraph Admin["Developer workstation"]
+        VSCode["Editor or terminal"]
         Browser["Browser dashboard access"]
-        DBeaver["DBeaver via SSH tunnel"]
-        Terminal["Terminal / SSH"]
+        DBeaver["DBeaver<br/>local or SSH tunnel"]
+        Terminal["Terminal / optional SSH"]
     end
 
     subgraph Sources["External company sources"]
@@ -12,7 +12,7 @@ flowchart LR
         Robots["robots.txt / source constraints"]
     end
 
-    subgraph Lenovo["Lenovo Ubuntu Server"]
+    subgraph Host["Local or deployment host"]
         Cron["Host cron<br/>08:00 UTC daily"]
         Runner["scripts/run_daily_pipeline.sh<br/>flock-protected runner"]
 
@@ -50,7 +50,7 @@ flowchart LR
 
     subgraph Delivery["Delivery layer"]
         Caddy["Caddy reverse proxy<br/>HTTPS termination"]
-        Hostinger["Hostinger DNS<br/>life-science-news.com"]
+        DNS["DNS provider<br/>your-domain.example"]
         Dashboard["Web dashboard<br/>filters + news cards + chat"]
         Viewer["Viewer login<br/>secure read-only cookie"]
         GDrive["Google Drive<br/>shared Excel workbook"]
@@ -58,8 +58,8 @@ flowchart LR
     end
 
     VSCode --> Terminal
-    Terminal --> Lenovo
-    DBeaver -->|SSH tunnel 5434| Postgres
+    Terminal --> Host
+    DBeaver -->|local port or SSH tunnel| Postgres
     Browser --> Dashboard
 
     Cron --> Runner
@@ -94,6 +94,7 @@ flowchart LR
     App --> Dashboard
     App --> Viewer
 
-    Hostinger --> Caddy
+    DNS --> Caddy
     Caddy -->|edge_proxy Docker network| App
     Dashboard --> DWH
+    Dashboard --> DEA
