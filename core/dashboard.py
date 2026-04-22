@@ -32,6 +32,14 @@ def available_periods() -> list[dict[str, str]]:
     return [{"value": key, "label": label} for key, label in PERIOD_LABELS.items()]
 
 
+def _format_date(value: Any) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
 def list_companies(period: str = "all") -> list[str]:
     view_name = _resolve_view(period)
     with engine.begin() as connection:
@@ -47,17 +55,48 @@ def list_companies(period: str = "all") -> list[str]:
     return [str(row["company_name"]) for row in rows]
 
 
+def list_topics(period: str = "all", company_name: str | None = None) -> list[str]:
+    view_name = _resolve_view(period)
+    clauses = ["COALESCE(NULLIF(key_topic, ''), '') <> ''"]
+    params: dict[str, Any] = {}
+    if company_name and company_name.upper() != "ALL":
+        clauses.append("company_name = :company_name")
+        params["company_name"] = company_name
+    where_clause = f"WHERE {' AND '.join(clauses)}"
+    with engine.begin() as connection:
+        rows = connection.execute(
+            text(
+                f"""
+                SELECT DISTINCT key_topic
+                FROM {view_name}
+                {where_clause}
+                ORDER BY key_topic
+                """
+            ),
+            params,
+        ).mappings().all()
+    return [str(row["key_topic"]) for row in rows]
+
+
 def _resolve_view(period: str) -> str:
     return PERIOD_TO_VIEW.get(period, PERIOD_TO_VIEW["week"])
 
 
-def fetch_news(company_name: str | None = None, period: str = "week", limit: int = 200) -> pd.DataFrame:
+def fetch_news(
+    company_name: str | None = None,
+    period: str = "week",
+    topic: str | None = None,
+    limit: int = 200,
+) -> pd.DataFrame:
     view_name = _resolve_view(period)
     clauses = []
     params: dict[str, Any] = {"limit": int(limit)}
     if company_name and company_name.upper() != "ALL":
         clauses.append("company_name = :company_name")
         params["company_name"] = company_name
+    if topic and topic.upper() != "ALL":
+        clauses.append("key_topic = :topic")
+        params["topic"] = topic
     where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     query = text(
         f"""
@@ -87,21 +126,33 @@ def fetch_news(company_name: str | None = None, period: str = "week", limit: int
     return frame.fillna("")
 
 
-def fetch_dashboard_payload(company_name: str | None = None, period: str = "week", limit: int = 200) -> dict[str, Any]:
+def fetch_dashboard_payload(
+    company_name: str | None = None,
+    period: str = "week",
+    topic: str | None = None,
+    limit: int = 200,
+) -> dict[str, Any]:
     companies = list_companies(period=period)
     selected_company = company_name or "ALL"
     if selected_company.upper() != "ALL" and selected_company not in companies:
         selected_company = "ALL"
 
-    news_df = fetch_news(company_name=selected_company, period=period, limit=limit)
+    topics = list_topics(period=period, company_name=selected_company)
+    selected_topic = topic or "ALL"
+    if selected_topic.upper() != "ALL" and selected_topic not in topics:
+        selected_topic = "ALL"
+
+    news_df = fetch_news(company_name=selected_company, period=period, topic=selected_topic, limit=limit)
 
     if news_df.empty:
         return {
             "filters": {
                 "selected_company": selected_company,
                 "selected_period": period,
+                "selected_topic": selected_topic,
                 "companies": ["ALL", *companies],
                 "periods": available_periods(),
+                "topics": ["ALL", *topics],
             },
             "summary": {
                 "article_count": 0,
@@ -123,16 +174,16 @@ def fetch_dashboard_payload(company_name: str | None = None, period: str = "week
     )
     rows = news_df.to_dict(orient="records")
     for row in rows:
-        published_date = row.get("published_date")
-        if hasattr(published_date, "strftime"):
-            row["published_date"] = published_date.strftime("%Y-%m-%d")
+        row["published_date"] = _format_date(row.get("published_date"))
 
     return {
         "filters": {
             "selected_company": selected_company,
             "selected_period": period,
+            "selected_topic": selected_topic,
             "companies": ["ALL", *companies],
             "periods": available_periods(),
+            "topics": ["ALL", *topics],
         },
         "summary": {
             "article_count": int(len(news_df)),
@@ -161,8 +212,7 @@ def _fallback_chat_answer(question: str, articles: pd.DataFrame, company_name: s
     for company, items in sorted(grouped.items()):
         lines.append(f"{company}: {len(items)} article(s)")
         for item in items[:3]:
-            published_date = item.get("published_date")
-            date_label = published_date.strftime("%Y-%m-%d") if hasattr(published_date, "strftime") else str(published_date or "")
+            date_label = _format_date(item.get("published_date"))
             summary = str(item.get("article_summary") or "").strip()
             title = str(item.get("title") or "").strip()
             impact = str(item.get("business_impact") or "").strip()
@@ -187,8 +237,7 @@ def _article_sources(articles: pd.DataFrame, limit: int = 12) -> list[dict[str, 
         return sources
 
     for item in articles.head(limit).to_dict(orient="records"):
-        published_date = item.get("published_date")
-        date_label = published_date.strftime("%Y-%m-%d") if hasattr(published_date, "strftime") else str(published_date or "")
+        date_label = _format_date(item.get("published_date"))
         sources.append(
             {
                 "company_name": item.get("company_name", ""),
@@ -227,8 +276,7 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
     client = OpenAI(api_key=api_key)
     context_rows = []
     for item in articles.head(limit).to_dict(orient="records"):
-        published_date = item.get("published_date")
-        date_label = published_date.strftime("%Y-%m-%d") if hasattr(published_date, "strftime") else str(published_date or "")
+        date_label = _format_date(item.get("published_date"))
         context_rows.append(
             {
                 "company_name": item["company_name"],
