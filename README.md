@@ -83,7 +83,8 @@ The website is not a separate frontend application. It is served directly by the
 - HTML templates render the dashboard shell and the viewer login page
 - static CSS and JavaScript provide filtering, cards, and chat interactions
 - dashboard data comes from PostgreSQL reporting views
-- the chat experience reads the current filtered news set and returns company-level answers
+- the news feed can be filtered independently by period, company, and topic
+- the chat experience stays all-company for the selected period, regardless of the news-feed company or topic filters
 - a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
 
 This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
@@ -246,6 +247,14 @@ curl "${BASE_URL}/status" \
 
 curl -X POST "${BASE_URL}/run" \
   -H "X-Api-Key: ${API_AUTH_TOKEN}"
+
+curl "${BASE_URL}/api/dashboard/news?company=ALL&period=week&topic=financial" \
+  -H "X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}"
+
+curl -X POST "${BASE_URL}/api/dashboard/chat" \
+  -H "Content-Type: application/json" \
+  -H "X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}" \
+  -d '{"question":"What are the most important updates this week?","period":"week"}'
 ```
 
 FastAPI docs are disabled by default when `API_ENABLE_DOCS=false`.
@@ -265,8 +274,10 @@ What it includes:
 
 - company dropdown with `ALL` plus only the companies that have news in the selected period
 - period dropdown for `last 7 days`, `month`, `6 months`, and `all`
-- filtered news cards backed by the current `dwh` export views
+- topic dropdown with `ALL` plus available `key_topic` values such as `financial`, `clinical`, `corporate`, `manufacturing`, `m&a`, or `regulatory`
+- filtered news cards backed by the current `dwh` export views; the feed applies period, company, and topic together
 - a chat panel where the user can ask questions like `what are the news from the last 7 days?`
+- chat answers query all companies for the selected period and do not inherit the news-feed company or topic filters
 - article sources below each chat answer, including summaries and URLs, so users can verify the agent response against the original material
 
 Viewer mode:

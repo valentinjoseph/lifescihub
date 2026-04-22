@@ -409,14 +409,15 @@ def run_now() -> dict[str, Any]:
 def dashboard_news(
     company: str = "ALL",
     period: str = "week",
+    topic: str = "ALL",
 ) -> dict[str, Any]:
-    return fetch_dashboard_payload(company_name=company, period=period)
+    return fetch_dashboard_payload(company_name=company, period=period, topic=topic)
 
 
 @app.post("/api/dashboard/chat")
 def dashboard_chat(request: ChatRequest) -> dict[str, Any]:
     return chat_about_news(
         question=request.question,
-        company_name=request.company_name,
+        company_name="ALL",
         period=request.period,
     )

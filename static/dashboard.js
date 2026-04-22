@@ -1,5 +1,6 @@
 const companySelect = document.getElementById("companySelect");
 const periodSelect = document.getElementById("periodSelect");
+const topicSelect = document.getElementById("topicSelect");
 const refreshButton = document.getElementById("refreshButton");
 const runTokenInput = document.getElementById("runToken");
 const articleCount = document.getElementById("articleCount");
@@ -71,6 +72,7 @@ function populateSelect(select, values, selectedValue) {
 function initializeFilters() {
   populateSelect(companySelect, ["ALL"], "ALL");
   populateSelect(periodSelect, defaultPeriods, "week");
+  populateSelect(topicSelect, ["ALL"], "ALL");
 }
 
 function restoreToken() {
@@ -210,7 +212,8 @@ function renderChatSources(sources) {
 async function loadDashboard() {
   const company = companySelect.value || "ALL";
   const period = periodSelect.value || "week";
-  const response = await fetch(`/api/dashboard/news?company=${encodeURIComponent(company)}&period=${encodeURIComponent(period)}`, {
+  const topic = topicSelect.value || "ALL";
+  const response = await fetch(`/api/dashboard/news?company=${encodeURIComponent(company)}&period=${encodeURIComponent(period)}&topic=${encodeURIComponent(topic)}`, {
     headers: authHeaders(),
   });
   if (!response.ok) {
@@ -232,6 +235,7 @@ async function loadDashboard() {
   const payload = await response.json();
   populateSelect(companySelect, payload.filters.companies, payload.filters.selected_company);
   populateSelect(periodSelect, payload.filters.periods, payload.filters.selected_period);
+  populateSelect(topicSelect, payload.filters.topics, payload.filters.selected_topic);
   articleCount.textContent = payload.summary.article_count;
   companyCount.textContent = payload.summary.company_count;
   avgPriority.textContent = payload.summary.avg_priority;
@@ -259,7 +263,7 @@ async function askChat() {
     },
     body: JSON.stringify({
       question,
-      company_name: companySelect.value || "ALL",
+      company_name: "ALL",
       period: periodSelect.value || "week",
     }),
   });
@@ -283,9 +287,14 @@ runTokenInput.addEventListener("change", () => {
 refreshButton.addEventListener("click", loadDashboard);
 periodSelect.addEventListener("change", () => {
   companySelect.value = "ALL";
+  topicSelect.value = "ALL";
   loadDashboard();
 });
-companySelect.addEventListener("change", loadDashboard);
+companySelect.addEventListener("change", () => {
+  topicSelect.value = "ALL";
+  loadDashboard();
+});
+topicSelect.addEventListener("change", loadDashboard);
 chatButton.addEventListener("click", askChat);
 
 restoreToken();
