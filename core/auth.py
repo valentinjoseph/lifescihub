@@ -74,9 +74,14 @@ def viewer_credentials_are_valid(
     if not hmac.compare_digest(username, expected_username):
         return False
 
-    submitted_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
     normalized_expected_hash = expected_password_hash.removeprefix("sha256:").strip().lower()
-    return hmac.compare_digest(submitted_hash, normalized_expected_hash)
+    if expected_password_hash.startswith("sha256:") or (
+        len(normalized_expected_hash) == 64 and all(character in "0123456789abcdef" for character in normalized_expected_hash)
+    ):
+        submitted_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(submitted_hash, normalized_expected_hash)
+
+    return hmac.compare_digest(password, expected_password_hash)
 
 
 def viewer_request_is_allowed(method: str, path: str) -> bool:

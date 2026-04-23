@@ -83,6 +83,24 @@ class AuthHelperTests(unittest.TestCase):
             )
         )
 
+    def test_viewer_credentials_accept_direct_password_value(self) -> None:
+        self.assertTrue(
+            viewer_credentials_are_valid(
+                "guest",
+                "viewer-password",
+                "guest",
+                "viewer-password",
+            )
+        )
+        self.assertFalse(
+            viewer_credentials_are_valid(
+                "guest",
+                "wrong-password",
+                "guest",
+                "viewer-password",
+            )
+        )
+
     def test_viewer_policy_is_read_mostly(self) -> None:
         self.assertTrue(viewer_request_is_allowed("GET", "/api/dashboard/news"))
         self.assertTrue(viewer_request_is_allowed("POST", "/api/dashboard/chat"))
