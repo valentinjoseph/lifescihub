@@ -21,7 +21,13 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from core.auth import path_requires_auth, request_has_valid_auth, request_has_valid_viewer_auth, viewer_request_is_allowed
+from core.auth import (
+    path_requires_auth,
+    request_has_valid_auth,
+    request_has_valid_viewer_auth,
+    viewer_credentials_are_valid,
+    viewer_request_is_allowed,
+)
 from core.config import (
     ALLOWED_HOSTS,
     API_AUTH_TOKEN,
@@ -34,6 +40,8 @@ from core.config import (
     PUBLIC_RATE_LIMIT_WINDOW_SECONDS,
     RATE_LIMIT_ENABLED,
     VIEWER_ACCESS_TOKEN,
+    VIEWER_PASSWORD_HASH,
+    VIEWER_USERNAME,
 )
 from core.dashboard import chat_about_news, fetch_dashboard_payload
 from db.session import engine
@@ -312,9 +320,19 @@ def viewer(request: Request):
 
 
 @app.post("/viewer", include_in_schema=False, response_model=None)
-def viewer_login(request: Request, access_token: str = Form(...)) -> RedirectResponse:
-    if not VIEWER_ACCESS_TOKEN or access_token != VIEWER_ACCESS_TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid viewer token")
+def viewer_login(
+    request: Request,
+    username: str | None = Form(default=None),
+    password: str | None = Form(default=None),
+    access_token: str | None = Form(default=None),
+) -> RedirectResponse:
+    token_login_is_valid = bool(VIEWER_ACCESS_TOKEN and access_token == VIEWER_ACCESS_TOKEN)
+    credential_login_is_valid = bool(
+        VIEWER_ACCESS_TOKEN
+        and viewer_credentials_are_valid(username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH)
+    )
+    if not token_login_is_valid and not credential_login_is_valid:
+        raise HTTPException(status_code=401, detail="Invalid viewer credentials")
 
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(

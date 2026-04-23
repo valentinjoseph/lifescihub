@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+
 from fastapi import Request
 
 EXEMPT_AUTH_PATHS = {
@@ -57,6 +60,28 @@ def request_has_valid_viewer_auth(request: Request, expected_token: str | None) 
         return True
 
     return False
+
+
+def viewer_credentials_are_valid(
+    username: str | None,
+    password: str | None,
+    expected_username: str | None,
+    expected_password_hash: str | None,
+) -> bool:
+    if not username or not password or not expected_username or not expected_password_hash:
+        return False
+
+    if not hmac.compare_digest(username, expected_username):
+        return False
+
+    normalized_expected_hash = expected_password_hash.removeprefix("sha256:").strip().lower()
+    if expected_password_hash.startswith("sha256:") or (
+        len(normalized_expected_hash) == 64 and all(character in "0123456789abcdef" for character in normalized_expected_hash)
+    ):
+        submitted_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(submitted_hash, normalized_expected_hash)
+
+    return hmac.compare_digest(password, expected_password_hash)
 
 
 def viewer_request_is_allowed(method: str, path: str) -> bool:
