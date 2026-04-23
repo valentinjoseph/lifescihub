@@ -232,7 +232,7 @@ Admin auth headers:
 Viewer auth options:
 
 - `X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}`
-- or open `/viewer` and submit the viewer token through the login form
+- or open `/viewer` and sign in with `VIEWER_USERNAME` plus the password whose SHA-256 hash is stored in `VIEWER_PASSWORD_HASH`
 
 Examples:
 
@@ -289,7 +289,7 @@ echo "http://127.0.0.1:${API_BIND_PORT:-8011}/viewer"
 
 With the default `API_BIND_PORT=8011`, that is `http://127.0.0.1:8011/viewer`.
 
-That opens a viewer login form, sets a viewer cookie after successful sign-in, and redirects to the dashboard. The dashboard also accepts a pasted viewer or admin token in the access-token box.
+That opens a viewer username/password login form, sets a viewer cookie after successful sign-in, and redirects to the dashboard. The dashboard also accepts a pasted viewer or admin token in the access-token box.
 
 ## Productization Notes
 

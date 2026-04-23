@@ -8,6 +8,7 @@ from core.auth import (
     path_requires_auth,
     request_has_valid_auth,
     request_has_valid_viewer_auth,
+    viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
 
@@ -55,6 +56,32 @@ class AuthHelperTests(unittest.TestCase):
         )
         self.assertTrue(request_has_valid_viewer_auth(header_request, expected))
         self.assertTrue(request_has_valid_viewer_auth(cookie_request, expected))
+
+    def test_viewer_credentials_accept_sha256_password_hash(self) -> None:
+        self.assertTrue(
+            viewer_credentials_are_valid(
+                "guest",
+                "viewer-password",
+                "guest",
+                "sha256:5b601f1dddff95687115700d6ab159cd20331cb51090c2fd0479d518460300a6",
+            )
+        )
+        self.assertFalse(
+            viewer_credentials_are_valid(
+                "guest",
+                "wrong-password",
+                "guest",
+                "sha256:5b601f1dddff95687115700d6ab159cd20331cb51090c2fd0479d518460300a6",
+            )
+        )
+        self.assertFalse(
+            viewer_credentials_are_valid(
+                "other-user",
+                "viewer-password",
+                "guest",
+                "sha256:5b601f1dddff95687115700d6ab159cd20331cb51090c2fd0479d518460300a6",
+            )
+        )
 
     def test_viewer_policy_is_read_mostly(self) -> None:
         self.assertTrue(viewer_request_is_allowed("GET", "/api/dashboard/news"))
