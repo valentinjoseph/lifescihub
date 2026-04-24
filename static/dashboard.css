@@ -253,6 +253,81 @@ button.primary {
   transform: translateY(-1px);
 }
 
+.viewer-login-link.subtle-link {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent-deep);
+  border: 1px solid rgba(20, 62, 143, 0.12);
+}
+
+.status-banner {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(45, 127, 249, 0.08);
+  border: 1px solid rgba(45, 127, 249, 0.16);
+  color: var(--ink);
+}
+
+.portal-login-panel,
+.request-form,
+.request-list,
+.portal-hint-grid,
+.request-review-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.portal-hint-grid,
+.request-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portal-hint-card,
+.request-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(23, 50, 77, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.request-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.request-head h3,
+.portal-hint-card h3 {
+  margin: 0 0 6px;
+}
+
+.request-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent-deep);
+  background: rgba(20, 62, 143, 0.08);
+}
+
+.request-status-approved {
+  border-left: 4px solid #0f766e;
+}
+
+.request-status-rejected {
+  border-left: 4px solid #b91c1c;
+}
+
+.request-status-pending {
+  border-left: 4px solid var(--accent);
+}
+
+button.danger {
+  background: linear-gradient(135deg, #991b1b, #dc2626);
+  color: #fff;
+  font-weight: 700;
+}
+
 .controls-grid,
 .stats-grid,
 .content-grid,
@@ -511,7 +586,9 @@ button.primary {
   .content-grid,
   .stats-grid,
   .controls-grid,
-  .overview-grid {
+  .overview-grid,
+  .portal-hint-grid,
+  .request-grid {
     grid-template-columns: 1fr;
   }
 

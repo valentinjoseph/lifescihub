@@ -17,13 +17,26 @@
           <span>Biopharma intelligence</span>
           <span>AI summaries</span>
           <span>Daily refreshed</span>
+          {% if show_signed_in %}
+          <span>Logged in as {{ current_username }}</span>
+          <span>Role: {{ current_role }}</span>
+          {% endif %}
         </div>
       </div>
       <div class="hero-card">
         <label for="runToken">Access Token</label>
         <input id="runToken" type="password" placeholder="Paste viewer or admin token">
+        {% if show_signed_in %}
+        <div class="access-actions">
+          <a class="viewer-login-link" href="/viewer/logout">Log out</a>
+        </div>
+        {% else %}
         <div class="access-actions">
           <a class="viewer-login-link" href="/viewer">Sign in with username</a>
+        </div>
+        {% endif %}
+        <div class="access-actions">
+          <a class="viewer-login-link subtle-link" href="/requests/login">Company request portal</a>
         </div>
         <p class="helper">Viewer sign-in unlocks read-only dashboard/chat access. Admin tokens also unlock operational API routes.</p>
       </div>

@@ -5,9 +5,13 @@ import unittest
 from fastapi import Request
 
 from core.auth import (
+    build_signed_role_cookie,
+    credentials_are_valid,
     path_requires_auth,
+    read_signed_role_cookie,
     request_has_valid_auth,
     request_has_valid_viewer_auth,
+    web_session_request_is_allowed,
     viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
@@ -36,6 +40,8 @@ class AuthHelperTests(unittest.TestCase):
         self.assertFalse(path_requires_auth("/"))
         self.assertFalse(path_requires_auth("/dashboard"))
         self.assertFalse(path_requires_auth("/viewer"))
+        self.assertFalse(path_requires_auth("/requests"))
+        self.assertFalse(path_requires_auth("/requests/login"))
         self.assertFalse(path_requires_auth("/static/dashboard.js"))
         self.assertTrue(path_requires_auth("/status"))
         self.assertTrue(path_requires_auth("/api/dashboard/news"))
@@ -58,6 +64,14 @@ class AuthHelperTests(unittest.TestCase):
         self.assertTrue(request_has_valid_viewer_auth(cookie_request, expected))
 
     def test_viewer_credentials_accept_sha256_password_hash(self) -> None:
+        self.assertTrue(
+            credentials_are_valid(
+                "guest",
+                "viewer-password",
+                "guest",
+                "sha256:5b601f1dddff95687115700d6ab159cd20331cb51090c2fd0479d518460300a6",
+            )
+        )
         self.assertTrue(
             viewer_credentials_are_valid(
                 "guest",
@@ -85,6 +99,14 @@ class AuthHelperTests(unittest.TestCase):
 
     def test_viewer_credentials_accept_direct_password_value(self) -> None:
         self.assertTrue(
+            credentials_are_valid(
+                "guest",
+                "viewer-password",
+                "guest",
+                "viewer-password",
+            )
+        )
+        self.assertTrue(
             viewer_credentials_are_valid(
                 "guest",
                 "viewer-password",
@@ -101,11 +123,24 @@ class AuthHelperTests(unittest.TestCase):
             )
         )
 
+    def test_signed_role_cookie_round_trip(self) -> None:
+        cookie_value = build_signed_role_cookie("admin", "alice", "secret-key")
+        self.assertEqual(read_signed_role_cookie(cookie_value, "secret-key"), {"role": "admin", "username": "alice"})
+        self.assertIsNone(read_signed_role_cookie(cookie_value, "wrong-key"))
+
     def test_viewer_policy_is_read_mostly(self) -> None:
         self.assertTrue(viewer_request_is_allowed("GET", "/api/dashboard/news"))
         self.assertTrue(viewer_request_is_allowed("POST", "/api/dashboard/chat"))
         self.assertFalse(viewer_request_is_allowed("POST", "/run"))
         self.assertFalse(viewer_request_is_allowed("GET", "/status"))
+
+    def test_web_session_role_policy_matches_guest_viewer_admin_access(self) -> None:
+        self.assertTrue(web_session_request_is_allowed("GET", "/api/dashboard/news", "guest"))
+        self.assertFalse(web_session_request_is_allowed("POST", "/api/dashboard/chat", "guest"))
+        self.assertTrue(web_session_request_is_allowed("POST", "/api/dashboard/chat", "viewer"))
+        self.assertTrue(web_session_request_is_allowed("GET", "/api/dashboard/news", "admin"))
+        self.assertTrue(web_session_request_is_allowed("POST", "/api/dashboard/chat", "admin"))
+        self.assertFalse(web_session_request_is_allowed("POST", "/run", "admin"))
 
 
 if __name__ == "__main__":

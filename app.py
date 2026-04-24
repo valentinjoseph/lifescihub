@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 from argparse import Namespace
+from html import escape
 from pathlib import Path
 from time import perf_counter, time
 from typing import Any
@@ -17,14 +18,19 @@ from threading import Lock
 from fastapi import FastAPI, Form, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel
 from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.auth import (
+    build_signed_role_cookie,
+    credentials_are_valid,
     path_requires_auth,
+    read_signed_role_cookie,
     request_has_valid_auth,
     request_has_valid_viewer_auth,
+    web_session_request_is_allowed,
     viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
@@ -39,11 +45,17 @@ from core.config import (
     PUBLIC_RATE_LIMIT_MAX_REQUESTS,
     PUBLIC_RATE_LIMIT_WINDOW_SECONDS,
     RATE_LIMIT_ENABLED,
+    REQUEST_ADMIN_PASSWORD,
+    REQUEST_ADMIN_USERNAME,
+    REQUEST_GUEST_PASSWORD,
+    REQUEST_GUEST_USERNAME,
+    REQUEST_SESSION_SECRET,
     VIEWER_ACCESS_TOKEN,
     VIEWER_PASSWORD_HASH,
     VIEWER_USERNAME,
 )
 from core.dashboard import chat_about_news, fetch_dashboard_payload
+from core.request_portal import create_company_request, ensure_request_tables, list_company_requests, review_company_request
 from db.session import engine
 from orchestration.LS_MAIN_REFACTORED import PROJECT_ROOT, run_pipeline
 
@@ -67,6 +79,11 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "same-origin",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
+REQUEST_PORTAL_COOKIE = "liscihub_request_session"
+jinja_env = Environment(
+    loader=FileSystemLoader(str(PROJECT_ROOT / "templates")),
+    autoescape=select_autoescape(["html", "xml"]),
+)
 
 
 class ChatRequest(BaseModel):
@@ -193,6 +210,8 @@ def _rate_limit_scope(method: str, path: str) -> str | None:
         return "chat"
     if path in {"/", "/dashboard", "/viewer", "/viewer/logout"}:
         return "public"
+    if path.startswith("/requests"):
+        return "public"
     if path.startswith("/static/"):
         return "public"
     if method == "GET" and path == "/api/dashboard/news":
@@ -258,6 +277,13 @@ async def enforce_api_auth(request: Request, call_next):
     if API_REQUIRE_AUTH and path_requires_auth(request.url.path):
         if request_has_valid_auth(request.headers, API_AUTH_TOKEN):
             return await call_next(request)
+        web_session = _portal_session(request)
+        if web_session:
+            if web_session_request_is_allowed(request.method, request.url.path, web_session["role"]):
+                return await call_next(request)
+            response = JSONResponse(status_code=403, content={"detail": "Your account does not have access to this route"})
+            response.headers["X-Request-ID"] = _get_request_id(request.headers)
+            return response
         if request_has_valid_viewer_auth(request, VIEWER_ACCESS_TOKEN):
             if viewer_request_is_allowed(request.method, request.url.path):
                 return await call_next(request)
@@ -300,13 +326,27 @@ def root() -> RedirectResponse:
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-def dashboard() -> str:
-    html_path = PROJECT_ROOT / "templates" / "dashboard.html"
-    return html_path.read_text(encoding="utf-8")
+def dashboard(request: Request):
+    session = _portal_session(request)
+    viewer_cookie_active = bool(request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN)
+    show_signed_in = bool(session or viewer_cookie_active)
+    response = _render_template(
+        "dashboard.html",
+        current_username=session["username"] if session else "Authenticated user",
+        current_role=session["role"] if session else ("viewer" if viewer_cookie_active else ""),
+        show_signed_in=show_signed_in,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/viewer", include_in_schema=False, response_class=HTMLResponse, response_model=None)
 def viewer(request: Request):
+    session = _portal_session(request)
+    if session:
+        response = RedirectResponse(url="/dashboard", status_code=307)
+        response.headers["Cache-Control"] = "no-store"
+        return response
     if request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
         response = RedirectResponse(url="/dashboard", status_code=307)
         response.headers["Cache-Control"] = "no-store"
@@ -319,6 +359,170 @@ def viewer(request: Request):
     return response
 
 
+def _render_template(template_name: str, **context: Any) -> HTMLResponse:
+    template = jinja_env.get_template(template_name)
+    return HTMLResponse(content=template.render(**context), status_code=200)
+
+
+def _portal_session(request: Request) -> dict[str, str] | None:
+    return read_signed_role_cookie(request.cookies.get(REQUEST_PORTAL_COOKIE), REQUEST_SESSION_SECRET)
+
+
+def _set_portal_session_cookie(response: RedirectResponse, request: Request, role: str, username: str) -> None:
+    response.set_cookie(
+        key=REQUEST_PORTAL_COOKIE,
+        value=build_signed_role_cookie(role, username, REQUEST_SESSION_SECRET),
+        httponly=True,
+        secure=_is_secure_request(request),
+        samesite="lax",
+        max_age=60 * 60 * 12,
+        path="/",
+    )
+
+
+def _require_portal_session(request: Request, allowed_roles: set[str] | None = None) -> dict[str, str]:
+    session = _portal_session(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Sign in required")
+    if allowed_roles and session["role"] not in allowed_roles:
+        raise HTTPException(status_code=403, detail="You do not have access to this action")
+    return session
+
+
+def _portal_message(request: Request) -> str:
+    return str(request.query_params.get("message", "")).strip()
+
+
+def _normalize_company_name(value: str) -> str:
+    return " ".join(value.strip().split()).upper()
+
+
+def _normalize_source_url(value: str) -> str:
+    return value.strip()
+
+
+def _validate_request_input(company_name: str, source_url: str) -> tuple[str, str]:
+    normalized_company_name = _normalize_company_name(company_name)
+    normalized_source_url = _normalize_source_url(source_url)
+    if not normalized_company_name:
+        raise HTTPException(status_code=400, detail="Company name is required")
+    if len(normalized_company_name) > 100:
+        raise HTTPException(status_code=400, detail="Company name is too long")
+    if not normalized_source_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Source URL must start with http:// or https://")
+    return normalized_company_name, normalized_source_url
+
+
+@app.get("/requests/login", include_in_schema=False, response_class=HTMLResponse, response_model=None)
+def request_portal_login_page(request: Request):
+    session = _portal_session(request)
+    if session:
+        response = RedirectResponse(url="/requests", status_code=307)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    response = _render_template(
+        "request_login.html",
+        guest_username=REQUEST_GUEST_USERNAME,
+        admin_username=REQUEST_ADMIN_USERNAME,
+        message=_portal_message(request),
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/requests/login", include_in_schema=False, response_model=None)
+def request_portal_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+) -> RedirectResponse:
+    normalized_username = username.strip()
+    role: str | None = None
+    if credentials_are_valid(normalized_username, password, REQUEST_ADMIN_USERNAME, REQUEST_ADMIN_PASSWORD):
+        role = "admin"
+    elif viewer_credentials_are_valid(normalized_username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH):
+        role = "viewer"
+    elif credentials_are_valid(normalized_username, password, REQUEST_GUEST_USERNAME, REQUEST_GUEST_PASSWORD):
+        role = "guest"
+    if not role:
+        raise HTTPException(status_code=401, detail="Invalid request portal credentials")
+
+    response = RedirectResponse(url="/requests", status_code=303)
+    _set_portal_session_cookie(response, request, role, normalized_username)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/requests/logout", include_in_schema=False, response_model=None)
+def request_portal_logout() -> RedirectResponse:
+    response = RedirectResponse(url="/requests/login?message=Signed+out", status_code=303)
+    response.delete_cookie(key=REQUEST_PORTAL_COOKIE, path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/requests", include_in_schema=False, response_class=HTMLResponse, response_model=None)
+def request_portal(request: Request):
+    session = _portal_session(request)
+    if not session:
+        response = RedirectResponse(url="/requests/login", status_code=307)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    ensure_request_tables()
+    requests = list_company_requests(session["role"], session["username"])
+    response = _render_template(
+        "request_portal.html",
+        current_role=session["role"],
+        current_username=session["username"],
+        is_admin=session["role"] == "admin",
+        requests=requests,
+        message=_portal_message(request),
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/requests/submit", include_in_schema=False, response_model=None)
+def request_portal_submit(
+    request: Request,
+    company_name: str = Form(...),
+    source_url: str = Form(...),
+) -> RedirectResponse:
+    session = _require_portal_session(request, {"guest", "viewer", "admin"})
+    normalized_company_name, normalized_source_url = _validate_request_input(company_name, source_url)
+    create_company_request(normalized_company_name, normalized_source_url, session["username"], session["role"])
+    response = RedirectResponse(url="/requests?message=Request+submitted", status_code=303)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/requests/{request_id}/approve", include_in_schema=False, response_model=None)
+def request_portal_approve(request: Request, request_id: str, review_note: str | None = Form(default=None)) -> RedirectResponse:
+    session = _require_portal_session(request, {"admin"})
+    try:
+        review_company_request(request_id, session["username"], approved=True, review_note=review_note)
+        message = "Request+approved"
+    except ValueError as exc:
+        message = escape(str(exc)).replace(" ", "+")
+    response = RedirectResponse(url=f"/requests?message={message}", status_code=303)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/requests/{request_id}/reject", include_in_schema=False, response_model=None)
+def request_portal_reject(request: Request, request_id: str, review_note: str | None = Form(default=None)) -> RedirectResponse:
+    session = _require_portal_session(request, {"admin"})
+    try:
+        review_company_request(request_id, session["username"], approved=False, review_note=review_note)
+        message = "Request+rejected"
+    except ValueError as exc:
+        message = escape(str(exc)).replace(" ", "+")
+    response = RedirectResponse(url=f"/requests?message={message}", status_code=303)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.post("/viewer", include_in_schema=False, response_model=None)
 def viewer_login(
     request: Request,
@@ -326,24 +530,33 @@ def viewer_login(
     password: str | None = Form(default=None),
     access_token: str | None = Form(default=None),
 ) -> RedirectResponse:
+    normalized_username = (username or "").strip()
     token_login_is_valid = bool(VIEWER_ACCESS_TOKEN and access_token == VIEWER_ACCESS_TOKEN)
-    credential_login_is_valid = bool(
-        VIEWER_ACCESS_TOKEN
-        and viewer_credentials_are_valid(username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH)
-    )
-    if not token_login_is_valid and not credential_login_is_valid:
+    role: str | None = None
+    if credentials_are_valid(normalized_username, password, REQUEST_ADMIN_USERNAME, REQUEST_ADMIN_PASSWORD):
+        role = "admin"
+    elif viewer_credentials_are_valid(normalized_username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH):
+        role = "viewer"
+    elif credentials_are_valid(normalized_username, password, REQUEST_GUEST_USERNAME, REQUEST_GUEST_PASSWORD):
+        role = "guest"
+    if not token_login_is_valid and not role:
         raise HTTPException(status_code=401, detail="Invalid viewer credentials")
 
     response = RedirectResponse(url="/dashboard", status_code=303)
-    response.set_cookie(
-        key="liscihub_viewer_token",
-        value=VIEWER_ACCESS_TOKEN,
-        httponly=True,
-        secure=_is_secure_request(request),
-        samesite="lax",
-        max_age=60 * 60 * 12,
-        path="/",
-    )
+    if token_login_is_valid or role in {"viewer", "admin"}:
+        response.set_cookie(
+            key="liscihub_viewer_token",
+            value=VIEWER_ACCESS_TOKEN,
+            httponly=True,
+            secure=_is_secure_request(request),
+            samesite="lax",
+            max_age=60 * 60 * 12,
+            path="/",
+        )
+    else:
+        response.delete_cookie(key="liscihub_viewer_token", path="/")
+    if role:
+        _set_portal_session_cookie(response, request, role, normalized_username)
     response.set_cookie(
         key="liscihub_viewer_mode",
         value="1",
@@ -362,6 +575,7 @@ def viewer_logout() -> RedirectResponse:
     response = RedirectResponse(url="/dashboard", status_code=307)
     response.delete_cookie(key="liscihub_viewer_token")
     response.delete_cookie(key="liscihub_viewer_mode")
+    response.delete_cookie(key=REQUEST_PORTAL_COOKIE, path="/")
     response.headers["Cache-Control"] = "no-store"
     return response
 

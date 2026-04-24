@@ -216,6 +216,9 @@ The local service exposes:
 - `POST /api/dashboard/chat`
 - `GET /viewer`
 - `GET /viewer/logout`
+ - `GET /requests/login`
+ - `GET /requests`
+ - `GET /requests/logout`
 
 Auth model:
 
@@ -233,6 +236,12 @@ Viewer auth options:
 
 - `X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}`
 - or open `/viewer` and sign in with `VIEWER_USERNAME` plus the password whose SHA-256 hash is stored in `VIEWER_PASSWORD_HASH`
+
+Request portal auth:
+
+- guest request account: `REQUEST_GUEST_USERNAME` / `REQUEST_GUEST_PASSWORD`
+- admin review account: `REQUEST_ADMIN_USERNAME` / `REQUEST_ADMIN_PASSWORD`
+- approval writes approved requests into `tech.ls_load_sources` and `tech.ls_load_config`
 
 Examples:
 
