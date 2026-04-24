@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Science Watch Request Portal</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Life Science Watch</p>
+        <h1>Company Requests</h1>
+        <p class="subtitle">Guests can submit new company/source requests. Admins can review and approve them into the scraping configuration.</p>
+      </div>
+    </section>
+
+    <section class="panel portal-login-panel">
+      <div class="panel-head">
+        <h2>Sign In</h2>
+        <p>Any signed-in non-admin account can submit requests. Admin accounts can review and accept them.</p>
+      </div>
+      {% if message %}
+      <p class="status-banner">{{ message }}</p>
+      {% endif %}
+      <div class="portal-hint-grid">
+        <article class="portal-hint-card">
+          <h3>Guest</h3>
+          <p>Submit a company name and source URL for review.</p>
+        </article>
+        <article class="portal-hint-card">
+          <h3>Viewer</h3>
+          <p>Viewer accounts can also submit requests from the same portal.</p>
+        </article>
+        <article class="portal-hint-card">
+          <h3>Admin</h3>
+          <p>Review pending requests and write approved rows into the tech schema.</p>
+        </article>
+      </div>
+      <form method="post" action="/requests/login">
+        <label for="username">
+          <span>Username</span>
+          <input id="username" name="username" type="text" autocomplete="username" required>
+        </label>
+        <label for="password">
+          <span>Password</span>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <div class="chat-actions">
+          <button class="primary" type="submit">Open Request Portal</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

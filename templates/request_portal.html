@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Science Watch Request Portal</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Life Science Watch</p>
+        <h1>Company Requests</h1>
+        <p class="subtitle">Submit a company/source addition for review, or approve pending requests into the `tech` scraping tables.</p>
+        <div class="hero-ribbon">
+          <span>Signed in as {{ current_username }}</span>
+          <span>Role: {{ current_role }}</span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="access-actions">
+          <a class="viewer-login-link" href="/dashboard">Dashboard</a>
+        </div>
+        <div class="access-actions">
+          <a class="viewer-login-link subtle-link" href="/requests/logout">Sign out</a>
+        </div>
+      </div>
+    </section>
+
+    {% if message %}
+    <section class="controls-card">
+      <p class="status-banner">{{ message }}</p>
+    </section>
+    {% endif %}
+
+    <section class="content-grid request-grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Submit Request</h2>
+          <p>Add a company name and a source URL for admin review.</p>
+        </div>
+        <form method="post" action="/requests/submit" class="request-form">
+          <label for="company_name">
+            <span>Company Name</span>
+            <input id="company_name" name="company_name" type="text" placeholder="Example: EXAMPLE THERAPEUTICS" required>
+          </label>
+          <label for="source_url">
+            <span>Source URL</span>
+            <input id="source_url" name="source_url" type="url" placeholder="https://company.example/newsroom" required>
+          </label>
+          <div class="chat-actions">
+            <button class="primary" type="submit">Submit Request</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>{% if is_admin %}Pending Review{% else %}My Requests{% endif %}</h2>
+          <p>{% if is_admin %}Approve or reject requests after validation.{% else %}Track the review status of your submitted requests.{% endif %}</p>
+        </div>
+        <div class="request-list">
+          {% if requests %}
+            {% for item in requests %}
+            <article class="request-card request-status-{{ item.review_status|lower }}">
+              <div class="request-head">
+                <div>
+                  <h3>{{ item.company_name }}</h3>
+                  <p class="meta-line">{{ item.source_url }}</p>
+                </div>
+                <span class="request-pill">{{ item.review_status }}</span>
+              </div>
+              <p class="meta-line">Submitted by {{ item.submitter_username }} on {{ item.requested_ts }}</p>
+              {% if item.review_note %}
+              <p><strong>Review note:</strong> {{ item.review_note }}</p>
+              {% endif %}
+              {% if item.reviewer_username %}
+              <p class="meta-line">Reviewed by {{ item.reviewer_username }}{% if item.reviewed_ts %} on {{ item.reviewed_ts }}{% endif %}</p>
+              {% endif %}
+              {% if is_admin and item.review_status == "PENDING" %}
+              <div class="request-review-grid">
+                <form method="post" action="/requests/{{ item.request_id }}/approve">
+                  <label>
+                    <span>Approval note</span>
+                    <input name="review_note" type="text" placeholder="Optional note for the submitter">
+                  </label>
+                  <button class="primary" type="submit">Approve</button>
+                </form>
+                <form method="post" action="/requests/{{ item.request_id }}/reject">
+                  <label>
+                    <span>Rejection note</span>
+                    <input name="review_note" type="text" placeholder="Explain what needs to change">
+                  </label>
+                  <button class="danger" type="submit">Reject</button>
+                </form>
+              </div>
+              {% endif %}
+            </article>
+            {% endfor %}
+          {% else %}
+          <div class="news-row">
+            <p class="meta-line">No requests yet.</p>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
