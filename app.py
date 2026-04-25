@@ -34,6 +34,15 @@ from core.auth import (
     viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
+from core.activity import (
+    ACTIVITY_AI_CHAT,
+    ACTIVITY_LOGIN,
+    ACTIVITY_NEWS_FILTER,
+    fetch_activity_summary_filtered,
+    fetch_recent_activity_filtered,
+    list_activity_accounts,
+    record_activity,
+)
 from core.config import (
     ALLOWED_HOSTS,
     API_AUTH_TOKEN,
@@ -84,6 +93,17 @@ jinja_env = Environment(
     loader=FileSystemLoader(str(PROJECT_ROOT / "templates")),
     autoescape=select_autoescape(["html", "xml"]),
 )
+ACTIVITY_PERIOD_OPTIONS = [
+    {"value": 1, "label": "Last 24 hours"},
+    {"value": 7, "label": "Last 7 days"},
+    {"value": 30, "label": "Last 30 days"},
+]
+ACTIVITY_TYPE_OPTIONS = [
+    {"value": "ALL", "label": "All activity"},
+    {"value": ACTIVITY_LOGIN, "label": "Logins"},
+    {"value": ACTIVITY_NEWS_FILTER, "label": "News filtering"},
+    {"value": ACTIVITY_AI_CHAT, "label": "AI chat"},
+]
 
 
 class ChatRequest(BaseModel):
@@ -185,6 +205,17 @@ def _database_ready() -> bool:
 
 def _get_request_id(headers: dict) -> str:
     return headers.get("x-request-id") or str(uuid4())
+
+
+def _effective_session(request: Request | None) -> dict[str, str] | None:
+    if request is None:
+        return None
+    session = _portal_session(request)
+    if session:
+        return session
+    if request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
+        return {"role": "viewer", "username": "Authenticated user"}
+    return None
 
 
 def _get_client_ip(request: Request) -> str:
@@ -330,11 +361,57 @@ def dashboard(request: Request):
     session = _portal_session(request)
     viewer_cookie_active = bool(request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN)
     show_signed_in = bool(session or viewer_cookie_active)
+    is_admin = bool(session and session["role"] == "admin")
     response = _render_template(
         "dashboard.html",
         current_username=session["username"] if session else "Authenticated user",
         current_role=session["role"] if session else ("viewer" if viewer_cookie_active else ""),
         show_signed_in=show_signed_in,
+        is_admin=is_admin,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/activity", include_in_schema=False, response_class=HTMLResponse, response_model=None)
+def activity_monitoring(request: Request):
+    session = _require_portal_session(request, {"admin"})
+    try:
+        selected_days = int(str(request.query_params.get("days", "7")))
+    except ValueError:
+        selected_days = 7
+    if selected_days not in {1, 7, 30}:
+        selected_days = 7
+    selected_username = str(request.query_params.get("username", "ALL")).strip() or "ALL"
+    selected_activity_type = str(request.query_params.get("activity_type", "ALL")).strip() or "ALL"
+
+    accounts = ["ALL", *list_activity_accounts(days=max(selected_days, 30))]
+    if selected_username not in accounts:
+        selected_username = "ALL"
+    if selected_activity_type not in {item["value"] for item in ACTIVITY_TYPE_OPTIONS}:
+        selected_activity_type = "ALL"
+
+    response = _render_template(
+        "activity_monitoring.html",
+        current_role=session["role"],
+        current_username=session["username"],
+        activity_summary=fetch_activity_summary_filtered(
+            days=selected_days,
+            username=selected_username,
+            activity_type=selected_activity_type,
+        ),
+        recent_activity=fetch_recent_activity_filtered(
+            days=selected_days,
+            username=selected_username,
+            activity_type=selected_activity_type,
+            limit=50,
+        ),
+        account_options=accounts,
+        selected_username=selected_username,
+        activity_type_options=ACTIVITY_TYPE_OPTIONS,
+        selected_activity_type=selected_activity_type,
+        period_options=ACTIVITY_PERIOD_OPTIONS,
+        selected_days=selected_days,
     )
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -449,6 +526,14 @@ def request_portal_login(
 
     response = RedirectResponse(url="/requests", status_code=303)
     _set_portal_session_cookie(response, request, role, normalized_username)
+    record_activity(
+        normalized_username,
+        role,
+        ACTIVITY_LOGIN,
+        "/requests/login",
+        request_id=_get_request_id(request.headers),
+        client_ip=_get_client_ip(request),
+    )
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -557,6 +642,14 @@ def viewer_login(
         response.delete_cookie(key="liscihub_viewer_token", path="/")
     if role:
         _set_portal_session_cookie(response, request, role, normalized_username)
+        record_activity(
+            normalized_username,
+            role,
+            ACTIVITY_LOGIN,
+            "/viewer",
+            request_id=_get_request_id(request.headers),
+            client_ip=_get_client_ip(request),
+        )
     response.set_cookie(
         key="liscihub_viewer_mode",
         value="1",
@@ -639,15 +732,38 @@ def run_now() -> dict[str, Any]:
 
 @app.get("/api/dashboard/news")
 def dashboard_news(
+    request: Request = None,
     company: str = "ALL",
     period: str = "week",
     topic: str = "ALL",
 ) -> dict[str, Any]:
+    session = _effective_session(request)
+    if session:
+        record_activity(
+            session["username"],
+            session["role"],
+            ACTIVITY_NEWS_FILTER,
+            "/api/dashboard/news",
+            activity_meta={"company": company, "period": period, "topic": topic},
+            request_id=_get_request_id(request.headers) if request is not None else None,
+            client_ip=_get_client_ip(request) if request is not None else None,
+        )
     return fetch_dashboard_payload(company_name=company, period=period, topic=topic)
 
 
 @app.post("/api/dashboard/chat")
-def dashboard_chat(request: ChatRequest) -> dict[str, Any]:
+def dashboard_chat(request: ChatRequest, http_request: Request = None) -> dict[str, Any]:
+    session = _effective_session(http_request)
+    if session:
+        record_activity(
+            session["username"],
+            session["role"],
+            ACTIVITY_AI_CHAT,
+            "/api/dashboard/chat",
+            activity_meta={"period": request.period, "question_length": len(request.question.strip())},
+            request_id=_get_request_id(http_request.headers) if http_request is not None else None,
+            client_ip=_get_client_ip(http_request) if http_request is not None else None,
+        )
     return chat_about_news(
         question=request.question,
         company_name="ALL",

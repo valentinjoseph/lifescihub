@@ -271,7 +271,8 @@ button.primary {
 .request-form,
 .request-list,
 .portal-hint-grid,
-.request-review-grid {
+.request-review-grid,
+.activity-metric-grid {
   display: grid;
   gap: 16px;
 }
@@ -308,6 +309,30 @@ button.primary {
   font-weight: 700;
   color: var(--accent-deep);
   background: rgba(20, 62, 143, 0.08);
+}
+
+.activity-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.activity-metric {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(20, 62, 143, 0.05);
+  border: 1px solid rgba(20, 62, 143, 0.08);
+}
+
+.activity-metric span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.activity-metric strong {
+  font-size: 1.45rem;
+  color: var(--accent-deep);
 }
 
 .request-status-approved {
@@ -348,6 +373,10 @@ button.danger {
 .controls-grid .primary {
   grid-column: 1 / -1;
   width: 100%;
+}
+
+.activity-filter-grid .primary {
+  grid-column: auto;
 }
 
 .stats-grid {
@@ -593,6 +622,10 @@ button.danger {
   }
 
   .pulse-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-metric-grid {
     grid-template-columns: 1fr;
   }
 

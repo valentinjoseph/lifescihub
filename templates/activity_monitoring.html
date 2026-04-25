@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life Science Watch Activity Monitoring</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Life Science Watch</p>
+        <h1>Activity Monitoring</h1>
+        <p class="subtitle">Track authenticated account activity across logins, news filtering, and AI chat.</p>
+        <div class="hero-ribbon">
+          <span>Signed in as {{ current_username }}</span>
+          <span>Role: {{ current_role }}</span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="access-actions">
+          <a class="viewer-login-link" href="/dashboard">Back to dashboard</a>
+        </div>
+        <div class="access-actions">
+          <a class="viewer-login-link subtle-link" href="/viewer/logout">Log out</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls-card">
+      <form method="get" action="/activity" class="controls-grid activity-filter-grid">
+        <label>
+          <span>Account</span>
+          <select name="username">
+            {% for account in account_options %}
+            <option value="{{ account }}" {% if account == selected_username %}selected{% endif %}>{{ account }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <span>Activity Type</span>
+          <select name="activity_type">
+            {% for item in activity_type_options %}
+            <option value="{{ item.value }}" {% if item.value == selected_activity_type %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <span>Period</span>
+          <select name="days">
+            {% for item in period_options %}
+            <option value="{{ item.value }}" {% if item.value == selected_days %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="primary" type="submit">Apply filters</button>
+      </form>
+    </section>
+
+    <section class="panel admin-activity-panel">
+      <div class="panel-head">
+        <h2>By Account</h2>
+        <p>Aggregated activity for the selected time window.</p>
+      </div>
+      <div class="request-list">
+        {% if activity_summary %}
+          {% for item in activity_summary %}
+          <article class="request-card">
+            <div class="request-head">
+              <div>
+                <h3>{{ item.username }}</h3>
+                <p class="meta-line">Role: {{ item.role }}</p>
+              </div>
+              <span class="request-pill">Last active {{ item.last_activity_ts }}</span>
+            </div>
+            <div class="activity-metric-grid">
+              <div class="activity-metric">
+                <span>Logins</span>
+                <strong>{{ item.login_count }}</strong>
+              </div>
+              <div class="activity-metric">
+                <span>News Filters</span>
+                <strong>{{ item.news_filter_count }}</strong>
+              </div>
+              <div class="activity-metric">
+                <span>AI Chat</span>
+                <strong>{{ item.ai_chat_count }}</strong>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+        <div class="news-row">
+          <p class="meta-line">No tracked account activity for the selected filters.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel admin-activity-panel">
+      <div class="panel-head">
+        <h2>Recent Activity</h2>
+        <p>Latest events matching the selected filters.</p>
+      </div>
+      <div class="request-list">
+        {% if recent_activity %}
+          {% for item in recent_activity %}
+          <article class="request-card">
+            <div class="request-head">
+              <div>
+                <h3>{{ item.username }}</h3>
+                <p class="meta-line">{{ item.activity_type }} | {{ item.activity_path }}</p>
+              </div>
+              <span class="request-pill">{{ item.created_ts }}</span>
+            </div>
+            <p class="meta-line">Role: {{ item.role }}</p>
+            {% if item.activity_meta.company or item.activity_meta.period or item.activity_meta.topic %}
+            <p class="meta-line">
+              {% if item.activity_meta.company %}Company: {{ item.activity_meta.company }}{% endif %}
+              {% if item.activity_meta.period %} | Period: {{ item.activity_meta.period }}{% endif %}
+              {% if item.activity_meta.topic %} | Topic: {{ item.activity_meta.topic }}{% endif %}
+            </p>
+            {% endif %}
+            {% if item.activity_meta.question_length %}
+            <p class="meta-line">Question length: {{ item.activity_meta.question_length }}</p>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% else %}
+        <div class="news-row">
+          <p class="meta-line">No recent activity for the selected filters.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>
