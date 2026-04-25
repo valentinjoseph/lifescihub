@@ -13,6 +13,7 @@ from db.session import engine
 ACTIVITY_LOGIN = "login"
 ACTIVITY_NEWS_FILTER = "news_filter"
 ACTIVITY_AI_CHAT = "ai_chat"
+ACTIVITY_TABLE = "tech.ls_hub_activity_monitoring"
 
 
 def ensure_activity_table() -> None:
@@ -22,7 +23,7 @@ def ensure_activity_table() -> None:
                 """
                 CREATE SCHEMA IF NOT EXISTS tech;
 
-                CREATE TABLE IF NOT EXISTS tech.ls_user_activity (
+                CREATE TABLE IF NOT EXISTS tech.ls_hub_activity_monitoring (
                     activity_id TEXT PRIMARY KEY,
                     username TEXT NOT NULL,
                     role TEXT NOT NULL,
@@ -55,7 +56,7 @@ def record_activity(
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_user_activity (
+                INSERT INTO tech.ls_hub_activity_monitoring (
                     activity_id,
                     username,
                     role,
@@ -119,7 +120,7 @@ def fetch_activity_summary_filtered(
                     COUNT(*) FILTER (WHERE activity_type = 'news_filter') AS news_filter_count,
                     COUNT(*) FILTER (WHERE activity_type = 'ai_chat') AS ai_chat_count,
                     MAX(created_ts) AS last_activity_ts
-                FROM tech.ls_user_activity
+                FROM tech.ls_hub_activity_monitoring
                 WHERE """
                 + " AND ".join(filters)
                 + """
@@ -163,7 +164,7 @@ def fetch_recent_activity_filtered(
                     activity_path,
                     activity_meta,
                     created_ts
-                FROM tech.ls_user_activity
+                FROM tech.ls_hub_activity_monitoring
                 WHERE """
                 + " AND ".join(filters)
                 + """
@@ -195,7 +196,7 @@ def list_activity_accounts(days: int = 7) -> list[str]:
             text(
                 """
                 SELECT DISTINCT username
-                FROM tech.ls_user_activity
+                FROM tech.ls_hub_activity_monitoring
                 WHERE created_ts >= now() - make_interval(days => :days)
                 ORDER BY username ASC
                 """
