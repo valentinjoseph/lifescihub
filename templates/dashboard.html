@@ -38,6 +38,11 @@
         <div class="access-actions">
           <a class="viewer-login-link subtle-link" href="/requests/login">Company request portal</a>
         </div>
+        {% if is_admin %}
+        <div class="access-actions">
+          <a class="viewer-login-link subtle-link" href="/activity">Activity monitoring</a>
+        </div>
+        {% endif %}
         <p class="helper">Viewer sign-in unlocks read-only dashboard/chat access. Admin tokens also unlock operational API routes.</p>
       </div>
     </section>

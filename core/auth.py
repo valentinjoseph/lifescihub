@@ -135,6 +135,8 @@ def viewer_request_is_allowed(method: str, path: str) -> bool:
 
 def web_session_request_is_allowed(method: str, path: str, role: str) -> bool:
     if role == "admin":
+        if method == "GET" and path == "/activity":
+            return True
         if path.startswith("/api/dashboard/"):
             return True
         return False
