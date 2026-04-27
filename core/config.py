@@ -14,6 +14,23 @@ def env_bool(name: str, default: bool) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def parse_account_map(raw_value: str | None) -> dict[str, str]:
+    if not raw_value:
+        return {}
+
+    accounts: dict[str, str] = {}
+    for chunk in raw_value.split(","):
+        entry = chunk.strip()
+        if not entry or "=" not in entry:
+            continue
+        username, credential = entry.split("=", 1)
+        normalized_username = username.strip()
+        normalized_credential = credential.strip()
+        if normalized_username and normalized_credential:
+            accounts[normalized_username] = normalized_credential
+    return accounts
+
+
 POSTGRES_DB = os.getenv("POSTGRES_DB")
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
@@ -25,6 +42,7 @@ API_ENABLE_DOCS = env_bool("API_ENABLE_DOCS", True)
 API_REQUIRE_AUTH = env_bool("API_REQUIRE_AUTH", True)
 API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN", os.getenv("LSW_RUN_TOKEN"))
 VIEWER_ACCESS_TOKEN = os.getenv("VIEWER_ACCESS_TOKEN")
+VIEWER_ACCOUNTS = parse_account_map(os.getenv("VIEWER_ACCOUNTS"))
 VIEWER_USERNAME = os.getenv("VIEWER_USERNAME", "guest")
 VIEWER_PASSWORD_HASH = os.getenv("VIEWER_PASSWORD_HASH")
 REQUEST_GUEST_USERNAME = os.getenv("REQUEST_GUEST_USERNAME", os.getenv("GUEST_USERNAME", VIEWER_USERNAME or "guest"))

@@ -12,9 +12,11 @@ from core.auth import (
     request_has_valid_auth,
     request_has_valid_viewer_auth,
     web_session_request_is_allowed,
+    viewer_account_credentials_are_valid,
     viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
+from core.config import parse_account_map
 
 
 def build_request(
@@ -122,6 +124,26 @@ class AuthHelperTests(unittest.TestCase):
                 "viewer-password",
             )
         )
+
+    def test_parse_account_map_supports_multiple_viewers(self) -> None:
+        self.assertEqual(
+            parse_account_map("alice=sha256:aaa,bob=plain-password, carol = sha256:ccc "),
+            {
+                "alice": "sha256:aaa",
+                "bob": "plain-password",
+                "carol": "sha256:ccc",
+            },
+        )
+
+    def test_viewer_account_credentials_accept_multiple_accounts(self) -> None:
+        viewer_accounts = {
+            "alice": "sha256:5b601f1dddff95687115700d6ab159cd20331cb51090c2fd0479d518460300a6",
+            "bob": "plain-password",
+        }
+        self.assertTrue(viewer_account_credentials_are_valid("alice", "viewer-password", viewer_accounts))
+        self.assertTrue(viewer_account_credentials_are_valid("bob", "plain-password", viewer_accounts))
+        self.assertFalse(viewer_account_credentials_are_valid("alice", "wrong-password", viewer_accounts))
+        self.assertFalse(viewer_account_credentials_are_valid("carol", "plain-password", viewer_accounts))
 
     def test_signed_role_cookie_round_trip(self) -> None:
         cookie_value = build_signed_role_cookie("admin", "alice", "secret-key")
