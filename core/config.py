@@ -31,6 +31,12 @@ def parse_account_map(raw_value: str | None) -> dict[str, str]:
     return accounts
 
 
+def parse_csv_list(raw_value: str | None) -> list[str]:
+    if not raw_value:
+        return []
+    return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+
 POSTGRES_DB = os.getenv("POSTGRES_DB")
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
@@ -55,6 +61,7 @@ PUBLIC_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("PUBLIC_RATE_LIMIT_WINDOW_SECON
 PUBLIC_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("PUBLIC_RATE_LIMIT_MAX_REQUESTS", "240"))
 CHAT_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("CHAT_RATE_LIMIT_MAX_REQUESTS", "30"))
 LISCIHUB_PUBLIC_HOST = os.getenv("LISCIHUB_PUBLIC_HOST", "").strip()
+LISCIHUB_ALLOWED_HOSTS = parse_csv_list(os.getenv("LISCIHUB_ALLOWED_HOSTS"))
 ALLOWED_HOSTS = [
     host
     for host in [
@@ -62,6 +69,7 @@ ALLOWED_HOSTS = [
         "localhost",
         LISCIHUB_PUBLIC_HOST or None,
         f"www.{LISCIHUB_PUBLIC_HOST}" if LISCIHUB_PUBLIC_HOST else None,
+        *LISCIHUB_ALLOWED_HOSTS,
     ]
     if host
 ]

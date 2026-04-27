@@ -106,6 +106,12 @@ ACTIVITY_TYPE_OPTIONS = [
     {"value": ACTIVITY_NEWS_FILTER, "label": "News filtering"},
     {"value": ACTIVITY_AI_CHAT, "label": "AI chat"},
 ]
+DASHBOARD_ASSET_VERSION = str(
+    max(
+        int((PROJECT_ROOT / "static" / "dashboard.css").stat().st_mtime),
+        int((PROJECT_ROOT / "static" / "dashboard.js").stat().st_mtime),
+    )
+)
 
 
 class ChatRequest(BaseModel):
@@ -370,6 +376,7 @@ def dashboard(request: Request):
         current_role=session["role"] if session else ("viewer" if viewer_cookie_active else ""),
         show_signed_in=show_signed_in,
         is_admin=is_admin,
+        asset_version=DASHBOARD_ASSET_VERSION,
     )
     response.headers["Cache-Control"] = "no-store"
     return response

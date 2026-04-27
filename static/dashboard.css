@@ -230,6 +230,14 @@ button.primary {
   font-weight: 700;
 }
 
+button.secondary {
+  min-width: 84px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent-deep);
+  border: 1px solid rgba(20, 62, 143, 0.12);
+  font-weight: 700;
+}
+
 .access-actions {
   margin: 12px 0;
 }
@@ -501,6 +509,21 @@ button.danger {
 
 .panel-head {
   margin-bottom: 14px;
+}
+
+.panel-head-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-head-with-action > div {
+  min-width: 0;
+}
+
+.news-feed-collapsed .news-list {
+  display: none;
 }
 
 .news-list {
