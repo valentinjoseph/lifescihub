@@ -9,6 +9,8 @@ const avgPriority = document.getElementById("avgPriority");
 const topTopics = document.getElementById("topTopics");
 const companyBars = document.getElementById("companyBars");
 const topicPulse = document.getElementById("topicPulse");
+const newsFeedPanel = document.getElementById("newsFeedPanel");
+const newsFeedToggle = document.getElementById("newsFeedToggle");
 const newsRows = document.getElementById("newsRows");
 const newsMeta = document.getElementById("newsMeta");
 const chatButton = document.getElementById("chatButton");
@@ -17,6 +19,7 @@ const chatMeta = document.getElementById("chatMeta");
 const chatAnswer = document.getElementById("chatAnswer");
 const chatSources = document.getElementById("chatSources");
 const TOKEN_STORAGE_KEY = "liscihub_access_token";
+const NEWS_FEED_VISIBLE_STORAGE_KEY = "liscihub_news_feed_visible";
 const defaultPeriods = [
   { value: "week", label: "Last 7 days" },
   { value: "month", label: "This month" },
@@ -76,7 +79,7 @@ function initializeFilters() {
 }
 
 function restoreToken() {
-  const savedToken = window.sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  const savedToken = readStorage(window.sessionStorage, TOKEN_STORAGE_KEY);
   if (savedToken) {
     runTokenInput.value = savedToken;
   }
@@ -85,10 +88,49 @@ function restoreToken() {
 function persistToken() {
   const token = getRunToken();
   if (token) {
-    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    writeStorage(window.sessionStorage, TOKEN_STORAGE_KEY, token);
   } else {
-    window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    removeStorage(window.sessionStorage, TOKEN_STORAGE_KEY);
   }
+}
+
+function readStorage(storage, key) {
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch {
+    // Some managed browsers restrict storage; the dashboard still works without saved preferences.
+  }
+}
+
+function removeStorage(storage, key) {
+  try {
+    storage.removeItem(key);
+  } catch {
+    // Some managed browsers restrict storage; clearing saved preferences is best-effort.
+  }
+}
+
+function newsFeedIsVisible() {
+  return !newsFeedPanel.classList.contains("news-feed-collapsed");
+}
+
+function setNewsFeedVisibility(isVisible) {
+  newsFeedPanel.classList.toggle("news-feed-collapsed", !isVisible);
+  newsFeedToggle.textContent = isVisible ? "Hide" : "Show";
+  newsFeedToggle.setAttribute("aria-expanded", String(isVisible));
+  writeStorage(window.localStorage, NEWS_FEED_VISIBLE_STORAGE_KEY, String(isVisible));
+}
+
+function restoreNewsFeedVisibility() {
+  setNewsFeedVisibility(readStorage(window.localStorage, NEWS_FEED_VISIBLE_STORAGE_KEY) !== "false");
 }
 
 function escapeHtml(value) {
@@ -296,8 +338,12 @@ companySelect.addEventListener("change", () => {
 });
 topicSelect.addEventListener("change", loadDashboard);
 chatButton.addEventListener("click", askChat);
+newsFeedToggle.addEventListener("click", () => {
+  setNewsFeedVisibility(!newsFeedIsVisible());
+});
 
 restoreToken();
+restoreNewsFeedVisibility();
 initializeFilters();
 loadDashboard().catch((error) => {
   newsRows.innerHTML = `<div class='news-row'><p class='meta-line'>${escapeHtml(error.message)}</p></div>`;

@@ -97,6 +97,19 @@ def viewer_credentials_are_valid(
     return credentials_are_valid(username, password, expected_username, expected_password_hash)
 
 
+def viewer_account_credentials_are_valid(
+    username: str | None,
+    password: str | None,
+    viewer_accounts: dict[str, str] | None,
+) -> bool:
+    if not username or not password or not viewer_accounts:
+        return False
+    expected_password_value = viewer_accounts.get(username)
+    if not expected_password_value:
+        return False
+    return credentials_are_valid(username, password, username, expected_password_value)
+
+
 def build_signed_role_cookie(role: str, username: str, secret: str) -> str:
     payload = f"{role}|{username}"
     signature = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()

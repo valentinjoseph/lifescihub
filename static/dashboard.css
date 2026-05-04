@@ -87,6 +87,13 @@ body::after {
   font-weight: 700;
 }
 
+.hero-byline {
+  margin: -2px 0 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 .hero h1,
 .panel h2 {
   margin: 0 0 10px;
@@ -227,6 +234,14 @@ button:hover {
 button.primary {
   background: linear-gradient(135deg, var(--accent-deep), var(--accent));
   color: #f6fffd;
+  font-weight: 700;
+}
+
+button.secondary {
+  min-width: 84px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent-deep);
+  border: 1px solid rgba(20, 62, 143, 0.12);
   font-weight: 700;
 }
 
@@ -501,6 +516,21 @@ button.danger {
 
 .panel-head {
   margin-bottom: 14px;
+}
+
+.panel-head-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-head-with-action > div {
+  min-width: 0;
+}
+
+.news-feed-collapsed .news-list {
+  display: none;
 }
 
 .news-list {

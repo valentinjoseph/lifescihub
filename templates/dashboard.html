@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Life Science Watch Dashboard</title>
-  <link rel="stylesheet" href="/static/dashboard.css">
+  <link rel="stylesheet" href="/static/dashboard.css?v={{ asset_version }}">
 </head>
 <body>
   <main class="page-shell">
     <section class="hero">
       <div>
         <p class="eyebrow">Life Science Watch</p>
+        <p class="hero-byline">Intelligence platform built by Valentin Joseph</p>
         <h1>News Dashboard</h1>
         <p class="subtitle">Filter company news by period, review article-level summaries, and ask a chat agent for a company-by-company briefing.</p>
         <div class="hero-ribbon">
@@ -102,10 +103,13 @@
     </section>
 
     <section class="content-grid">
-      <section class="panel">
-        <div class="panel-head">
-          <h2>News Feed</h2>
-          <p id="newsMeta">Latest rows</p>
+      <section id="newsFeedPanel" class="panel">
+        <div class="panel-head panel-head-with-action">
+          <div>
+            <h2>News Feed</h2>
+            <p id="newsMeta">Latest rows</p>
+          </div>
+          <button id="newsFeedToggle" class="secondary" type="button" aria-expanded="true" aria-controls="newsRows">Hide</button>
         </div>
         <div id="newsRows" class="news-list"></div>
       </section>
@@ -126,6 +130,6 @@
     </section>
   </main>
 
-  <script src="/static/dashboard.js"></script>
+  <script src="/static/dashboard.js?v={{ asset_version }}"></script>
 </body>
 </html>

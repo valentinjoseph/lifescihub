@@ -331,6 +331,37 @@ Then set the public hostname in `infra/.env`:
 LISCIHUB_PUBLIC_HOST=your-domain.example
 ```
 
+### Access From A Corporate PC
+
+By default the Docker stack binds the website to `127.0.0.1`, so it is only reachable from the machine running Docker. That is intentional for a local deployment, but a different workstation cannot open the site directly.
+
+Recommended options:
+
+- use the public HTTPS domain behind your reverse proxy, then set `LISCIHUB_PUBLIC_HOST=your-domain.example`
+- or create an SSH tunnel from the corporate PC to the host and open the forwarded local URL
+
+For a trusted LAN-only test, you can expose the app on the host network interface. In `infra/.env`, set:
+
+```dotenv
+API_BIND_HOST=0.0.0.0
+API_BIND_PORT=8011
+LISCIHUB_ALLOWED_HOSTS=192.168.1.50,server-name.local
+```
+
+Replace `192.168.1.50` and `server-name.local` with the IP address or DNS name you will type into the corporate PC browser. Then restart:
+
+```bash
+make docker-rebuild
+```
+
+Open:
+
+```text
+http://192.168.1.50:8011/viewer
+```
+
+If the corporate browser still cannot connect, check that the host firewall allows inbound TCP traffic on `API_BIND_PORT`, and that the corporate network does not block direct access to private IPs or non-standard ports.
+
 ## Database Notes
 
 Connection defaults:

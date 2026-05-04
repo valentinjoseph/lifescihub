@@ -31,6 +31,7 @@ from core.auth import (
     request_has_valid_auth,
     request_has_valid_viewer_auth,
     web_session_request_is_allowed,
+    viewer_account_credentials_are_valid,
     viewer_credentials_are_valid,
     viewer_request_is_allowed,
 )
@@ -59,6 +60,7 @@ from core.config import (
     REQUEST_GUEST_PASSWORD,
     REQUEST_GUEST_USERNAME,
     REQUEST_SESSION_SECRET,
+    VIEWER_ACCOUNTS,
     VIEWER_ACCESS_TOKEN,
     VIEWER_PASSWORD_HASH,
     VIEWER_USERNAME,
@@ -104,6 +106,12 @@ ACTIVITY_TYPE_OPTIONS = [
     {"value": ACTIVITY_NEWS_FILTER, "label": "News filtering"},
     {"value": ACTIVITY_AI_CHAT, "label": "AI chat"},
 ]
+DASHBOARD_ASSET_VERSION = str(
+    max(
+        int((PROJECT_ROOT / "static" / "dashboard.css").stat().st_mtime),
+        int((PROJECT_ROOT / "static" / "dashboard.js").stat().st_mtime),
+    )
+)
 
 
 class ChatRequest(BaseModel):
@@ -368,6 +376,7 @@ def dashboard(request: Request):
         current_role=session["role"] if session else ("viewer" if viewer_cookie_active else ""),
         show_signed_in=show_signed_in,
         is_admin=is_admin,
+        asset_version=DASHBOARD_ASSET_VERSION,
     )
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -490,6 +499,12 @@ def _validate_request_input(company_name: str, source_url: str) -> tuple[str, st
     return normalized_company_name, normalized_source_url
 
 
+def _viewer_login_is_valid(username: str, password: str | None) -> bool:
+    if viewer_account_credentials_are_valid(username, password, VIEWER_ACCOUNTS):
+        return True
+    return viewer_credentials_are_valid(username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH)
+
+
 @app.get("/requests/login", include_in_schema=False, response_class=HTMLResponse, response_model=None)
 def request_portal_login_page(request: Request):
     session = _portal_session(request)
@@ -517,7 +532,7 @@ def request_portal_login(
     role: str | None = None
     if credentials_are_valid(normalized_username, password, REQUEST_ADMIN_USERNAME, REQUEST_ADMIN_PASSWORD):
         role = "admin"
-    elif viewer_credentials_are_valid(normalized_username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH):
+    elif _viewer_login_is_valid(normalized_username, password):
         role = "viewer"
     elif credentials_are_valid(normalized_username, password, REQUEST_GUEST_USERNAME, REQUEST_GUEST_PASSWORD):
         role = "guest"
@@ -620,7 +635,7 @@ def viewer_login(
     role: str | None = None
     if credentials_are_valid(normalized_username, password, REQUEST_ADMIN_USERNAME, REQUEST_ADMIN_PASSWORD):
         role = "admin"
-    elif viewer_credentials_are_valid(normalized_username, password, VIEWER_USERNAME, VIEWER_PASSWORD_HASH):
+    elif _viewer_login_is_valid(normalized_username, password):
         role = "viewer"
     elif credentials_are_valid(normalized_username, password, REQUEST_GUEST_USERNAME, REQUEST_GUEST_PASSWORD):
         role = "guest"
