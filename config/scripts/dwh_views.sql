@@ -18,73 +18,53 @@ DROP VIEW IF EXISTS dwh.v_news_month;
 DROP VIEW IF EXISTS dwh.v_news_6_months;
 DROP VIEW IF EXISTS dwh.v_news_all;
 
+CREATE OR REPLACE FUNCTION dwh.f_news_staging_articles()
+RETURNS TABLE (
+    company_name TEXT,
+    id TEXT,
+    url TEXT,
+    title TEXT,
+    article_content TEXT,
+    published_date TIMESTAMPTZ,
+    s_created_ts TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    staging_table RECORD;
+    company_label TEXT;
+BEGIN
+    FOR staging_table IN
+        SELECT schemaname, tablename
+        FROM pg_tables
+        WHERE schemaname LIKE 'stg_ls_%'
+          AND tablename LIKE 'stg_%_ingest'
+        ORDER BY schemaname, tablename
+    LOOP
+        company_label := upper(replace(regexp_replace(staging_table.schemaname, '^stg_ls_', ''), '_', ' '));
+
+        RETURN QUERY EXECUTE format(
+            'SELECT %L::text AS company_name,
+                    id::text,
+                    url::text,
+                    title::text,
+                    article_content::text,
+                    published_date::timestamptz,
+                    s_created_ts::timestamptz
+             FROM %I.%I',
+            company_label,
+            staging_table.schemaname,
+            staging_table.tablename
+        );
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE VIEW dwh.v_news_all AS
 WITH src AS (
-    SELECT 'ALLIANCE HEALTHCARE' AS company_name, id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_alliance_healthcare.stg_alliance_healthcare_ingest
-    UNION ALL
-    SELECT 'ASTERA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_astera.stg_astera_ingest
-    UNION ALL
-    SELECT 'BIOCODEX', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_biocodex.stg_biocodex_ingest
-    UNION ALL
-    SELECT 'CEVA SANTE', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_ceva_sante.stg_ceva_sante_ingest
-    UNION ALL
-    SELECT 'DELPHARM', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_delpharm.stg_delpharm_ingest
-    UNION ALL
-    SELECT 'EUROFINS', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_eurofins.stg_eurofins_ingest
-    UNION ALL
-    SELECT 'FAREVA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_fareva.stg_fareva_ingest
-    UNION ALL
-    SELECT 'GALDERMA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_galderma.stg_galderma_ingest
-    UNION ALL
-    SELECT 'HAELON', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_haelon.stg_haelon_ingest
-    UNION ALL
-    SELECT 'IPSEN', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_ipsen.stg_ipsen_ingest
-    UNION ALL
-    SELECT 'LILLY', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_lilly.stg_lilly_ingest
-    UNION ALL
-    SELECT 'MODERNA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_moderna.stg_moderna_ingest
-    UNION ALL
-    SELECT 'OPELLA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_opella.stg_opella_ingest
-    UNION ALL
-    SELECT 'OXIPHARM', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_oxipharm.stg_oxipharm_ingest
-    UNION ALL
-    SELECT 'PFIZER', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_pfizer.stg_pfizer_ingest
-    UNION ALL
-    SELECT 'PIERRE FABRE', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_pierre_fabre.stg_pierre_fabre_ingest
-    UNION ALL
-    SELECT 'SANOFI', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_sanofi.stg_sanofi_ingest
-    UNION ALL
-    SELECT 'SEBIA', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_sebia.stg_sebia_ingest
-    UNION ALL
-    SELECT 'SERVIER', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_servier.stg_servier_ingest
-    UNION ALL
-    SELECT 'STAGO', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_stago.stg_stago_ingest
-    UNION ALL
-    SELECT 'VIATRIS', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_viatris.stg_viatris_ingest
-    UNION ALL
-    SELECT 'VIRBAC', id, url, title, article_content, published_date, s_created_ts
-    FROM stg_ls_virbac.stg_virbac_ingest
+    SELECT *
+    FROM dwh.f_news_staging_articles()
 )
 SELECT
     src.company_name,
