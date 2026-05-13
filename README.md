@@ -202,6 +202,39 @@ Manual run:
 /bin/bash scripts/run_daily_pipeline.sh
 ```
 
+### Daily Email Report
+
+The daily runner can send a compact monitoring report by email after each run. The report is based on `tech.ls_load_monitoring` and includes:
+
+- whether the pipeline finished, failed, or was skipped because another run was active
+- total records inserted today
+- records inserted by company
+- source fetch/parse/error counts by company
+
+The recipient can be an Outlook address. The SMTP sender must be any account/provider that allows SMTP authentication.
+
+Enable it in `infra/.env`:
+
+```dotenv
+DAILY_REPORT_EMAIL_ENABLED=true
+DAILY_REPORT_EMAIL_FROM=monitor@example.com
+DAILY_REPORT_EMAIL_TO=your-address@outlook.com
+DAILY_REPORT_SMTP_HOST=smtp.example.com
+DAILY_REPORT_SMTP_PORT=587
+DAILY_REPORT_SMTP_USERNAME=monitor@example.com
+DAILY_REPORT_SMTP_PASSWORD=change_me
+DAILY_REPORT_SMTP_STARTTLS=true
+DAILY_REPORT_SMTP_SSL=false
+```
+
+Optional labels:
+
+```dotenv
+DAILY_REPORT_PROJECT="Life Science Watch"
+DAILY_REPORT_SUBJECT_PREFIX="[Life Science Watch]"
+DAILY_REPORT_TIMEZONE=Europe/Paris
+```
+
 ## API Usage
 
 The local service exposes:
@@ -477,6 +510,7 @@ make refresh
 - [scripts/generate_article_summaries.py](scripts/generate_article_summaries.py): AI summary refresh
 - [scripts/export_dwh_views.py](scripts/export_dwh_views.py): workbook export
 - [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
+- [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.ls_load_monitoring`
 - [config/scripts/dwh_views.sql](config/scripts/dwh_views.sql): DWH reporting views and DEA consumption marts
 - [infra/.env.example](infra/.env.example): safe env template
 
