@@ -162,7 +162,26 @@ def filter_delta_records(df_company: pd.DataFrame, last_success_ts) -> pd.DataFr
         last_success = last_success.tz_localize("UTC")
     else:
         last_success = last_success.tz_convert("UTC")
-    return df_company[(published_dates.isna()) | (published_dates > last_success)].reset_index(drop=True)
+    return df_company[published_dates.isna() | (published_dates > last_success)].reset_index(drop=True)
+
+
+def build_monitoring_metrics(df_company: pd.DataFrame, scrape_metrics: dict | None = None) -> dict:
+    scrape_metrics = dict(scrape_metrics or {})
+    eligible_count = 0 if df_company.empty else int(len(df_company))
+    avg_response_time_ms = 0.0
+    if not df_company.empty and "response_time_ms" in df_company:
+        response_times = pd.to_numeric(df_company["response_time_ms"], errors="coerce").dropna()
+        if not response_times.empty:
+            avg_response_time_ms = float(response_times.mean())
+
+    return {
+        "urls_attempted": eligible_count,
+        "urls_fetched": eligible_count,
+        "parse_success_count": eligible_count,
+        "avg_response_time_ms": avg_response_time_ms or float(scrape_metrics.get("avg_response_time_ms", 0.0)),
+        "error_count": int(scrape_metrics.get("error_count", 0)),
+        "unique_urls": 0 if df_company.empty else int(df_company["url"].nunique()),
+    }
 
 
 def export_results(df: pd.DataFrame, output_dir: Path) -> None:
@@ -197,7 +216,18 @@ def run_pipeline(args: argparse.Namespace) -> int:
         LOGGER.info("Dry run complete. Sources, config, and PostgreSQL storage are ready.")
         return 0
 
-    records, scrape_metrics, company_metrics = scrape_sources(sources, config.config, config.get_worker_count())
+    delta_cutoffs = {
+        company_name: monitor.get_last_success_timestamp(company_name)
+        for company_name, load_type in cfg_map.items()
+        if load_type == "DELTA"
+    }
+
+    records, scrape_metrics, company_metrics = scrape_sources(
+        sources,
+        config.config,
+        config.get_worker_count(),
+        min_published_dates=delta_cutoffs,
+    )
     validated_df = validate_scraped_data(records, min_title_length=config["MIN_TITLE_LENGTH"])
     overall_metrics = aggregate_metrics(validated_df, scrape_metrics)
 
@@ -216,7 +246,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
         company_df = company_df[[column for column in RESULT_COLUMNS if column in company_df.columns]]
 
         if load_type == "DELTA":
-            last_success_ts = monitor.get_last_success_timestamp(company_name)
+            last_success_ts = delta_cutoffs.get(company_name)
             company_df = filter_delta_records(company_df, last_success_ts)
 
         if company_df.empty:
@@ -228,7 +258,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
                 ["id", "url", "title", "article_content", "published_date", "s_created_ts"]
             ].copy()
 
-        company_metric_summary = aggregate_metrics(company_df, company_metrics.get(company_name, {}))
+        company_metric_summary = build_monitoring_metrics(company_df, company_metrics.get(company_name, {}))
 
         try:
             inserted_count = merge_data(storage, CATALOG, target_schema, target_table, company_write_df)

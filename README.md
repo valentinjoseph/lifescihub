@@ -179,6 +179,15 @@ What they do:
 - `make refresh`: summarize + export + sync
 - `make daily`: run the full daily pipeline script
 
+## Load Modes
+
+Company load modes are configured in `tech.ls_load_config`:
+
+- `FULL`: scrape and consider all validated articles from the configured source pages.
+- `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.ls_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
+
+In `DELTA` mode, known older articles are skipped. Articles without a usable `published_date` are still considered because some source sites do not expose dates reliably. The monitoring report's `attempted`, `fetched`, and `parsed` counts are post-DELTA eligible article counts, so they reflect articles considered for loading rather than every listing/article HTTP request made internally.
+
 ## Daily Automation
 
 The daily scheduled job runs:
@@ -512,6 +521,7 @@ make refresh
 - [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
 - [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.ls_load_monitoring`
 - [config/scripts/dwh_views.sql](config/scripts/dwh_views.sql): DWH reporting views and DEA consumption marts
+- [docs/TECHNICAL_FAQ.md](docs/TECHNICAL_FAQ.md): technical FAQ for maintainers and operators
 - [infra/.env.example](infra/.env.example): safe env template
 
 ## Notes
