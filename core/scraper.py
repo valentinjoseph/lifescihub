@@ -56,7 +56,36 @@ def _record_timing(metrics: dict[str, float | int], elapsed_ms: float) -> None:
     metrics["response_time_count"] += 1
 
 
-def scrape_source(company_name: str, listing_url: str, config: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, float | int]]:
+def _as_utc_datetime(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _is_later_than_cutoff(value: Any, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return True
+    parsed = _as_utc_datetime(value)
+    if parsed is None:
+        return True
+    return parsed > cutoff
+
+
+def scrape_source(
+    company_name: str,
+    listing_url: str,
+    config: dict[str, Any],
+    min_published_date: datetime | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, float | int]]:
     """Scrape one company listing page and return article records plus metrics."""
     max_items = int(config["MAX_ITEMS_PER_SOURCE"])
     listing_sleep = float(config["LISTING_SLEEP_SEC"])
@@ -126,8 +155,17 @@ def scrape_source(company_name: str, listing_url: str, config: dict[str, Any]) -
             candidate_urls.extend(extract_listing_links(listing_html, page_url, max_items))
 
     candidate_urls = list(dict.fromkeys(candidate_urls))
+    cutoff = _as_utc_datetime(min_published_date)
 
-    for article_url in candidate_urls[:max_items]:
+    considered_articles = 0
+    for article_url in candidate_urls:
+        jsonld_item = jsonld_by_url.get(article_url)
+        if jsonld_item and not _is_later_than_cutoff(jsonld_item.get("published_date"), cutoff):
+            continue
+        if considered_articles >= max_items:
+            break
+        considered_articles += 1
+
         time.sleep(article_sleep)
         title = None
         published_ts = None
@@ -149,7 +187,6 @@ def scrape_source(company_name: str, listing_url: str, config: dict[str, Any]) -
             metrics["urls_fetched"] += 1
             article_html = article_response.text
 
-            jsonld_item = jsonld_by_url.get(article_url)
             if jsonld_item:
                 title = jsonld_item.get("title") or title
                 published_ts = jsonld_item.get("published_date") or published_ts
@@ -164,6 +201,9 @@ def scrape_source(company_name: str, listing_url: str, config: dict[str, Any]) -
                 metrics["parse_success_count"] += 1
         else:
             metrics["error_count"] += 1
+            continue
+
+        if not _is_later_than_cutoff(published_ts, cutoff):
             continue
 
         records.append(
@@ -187,6 +227,7 @@ def scrape_sources(
     sources: list[dict[str, str]],
     config: dict[str, Any],
     max_workers: int,
+    min_published_dates: dict[str, datetime] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, float | int], dict[str, dict[str, float | int]]]:
     """Scrape all source URLs in parallel."""
     if not sources:
@@ -201,7 +242,13 @@ def scrape_sources(
 
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
         futures = {
-            executor.submit(scrape_source, source["company_name"], source["url"], config): source
+            executor.submit(
+                scrape_source,
+                source["company_name"],
+                source["url"],
+                config,
+                (min_published_dates or {}).get(source["company_name"]),
+            ): source
             for source in sources
         }
         for future in as_completed(futures):
