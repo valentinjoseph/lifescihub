@@ -10,7 +10,7 @@ from core.dashboard import fetch_dashboard_payload
 
 
 class DashboardChatTests(unittest.TestCase):
-    def test_dashboard_chat_ignores_news_feed_company_filter(self) -> None:
+    def test_dashboard_chat_ignores_news_feed_filters(self) -> None:
         with patch("app.chat_about_news") as chat_about_news:
             chat_about_news.return_value = {
                 "answer": "ok",
@@ -24,7 +24,7 @@ class DashboardChatTests(unittest.TestCase):
         chat_about_news.assert_called_once_with(
             question="What changed?",
             company_name="ALL",
-            period="month",
+            period="all",
         )
 
     def test_dashboard_news_passes_topic_filter_to_payload(self) -> None:
