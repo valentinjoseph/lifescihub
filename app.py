@@ -117,7 +117,7 @@ DASHBOARD_ASSET_VERSION = str(
 class ChatRequest(BaseModel):
     question: str
     company_name: str | None = None
-    period: str = "week"
+    period: str = "all"
 
 
 def _default_paths() -> dict[str, str]:
@@ -768,6 +768,7 @@ def dashboard_news(
 
 @app.post("/api/dashboard/chat")
 def dashboard_chat(request: ChatRequest, http_request: Request = None) -> dict[str, Any]:
+    chat_period = "all"
     session = _effective_session(http_request)
     if session:
         record_activity(
@@ -775,12 +776,12 @@ def dashboard_chat(request: ChatRequest, http_request: Request = None) -> dict[s
             session["role"],
             ACTIVITY_AI_CHAT,
             "/api/dashboard/chat",
-            activity_meta={"period": request.period, "question_length": len(request.question.strip())},
+            activity_meta={"period": chat_period, "question_length": len(request.question.strip())},
             request_id=_get_request_id(http_request.headers) if http_request is not None else None,
             client_ip=_get_client_ip(http_request) if http_request is not None else None,
         )
     return chat_about_news(
         question=request.question,
         company_name="ALL",
-        period=request.period,
+        period=chat_period,
     )

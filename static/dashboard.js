@@ -306,7 +306,7 @@ async function askChat() {
     body: JSON.stringify({
       question,
       company_name: "ALL",
-      period: periodSelect.value || "week",
+      period: "all",
     }),
   });
   if (!response.ok) {

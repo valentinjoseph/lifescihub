@@ -84,7 +84,7 @@ The website is not a separate frontend application. It is served directly by the
 - static CSS and JavaScript provide filtering, cards, and chat interactions
 - dashboard data comes from PostgreSQL reporting views
 - the news feed can be filtered independently by period, company, and topic
-- the chat experience stays all-company for the selected period, regardless of the news-feed company or topic filters
+- the chat experience queries all available dashboard news and does not inherit the news-feed period, company, or topic filters
 - a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
 
 This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
@@ -328,7 +328,7 @@ What it includes:
 - topic dropdown with `ALL` plus available `key_topic` values such as `financial`, `clinical`, `corporate`, `manufacturing`, `m&a`, or `regulatory`
 - filtered news cards backed by the current `dwh` export views; the feed applies period, company, and topic together
 - a chat panel where the user can ask questions like `what are the news from the last 7 days?`
-- chat answers query all companies for the selected period and do not inherit the news-feed company or topic filters
+- chat answers query all available dashboard news and do not inherit the news-feed period, company, or topic filters
 - article sources below each chat answer, including summaries and URLs, so users can verify the agent response against the original material
 
 Viewer mode:
