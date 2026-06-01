@@ -17,6 +17,7 @@ DROP VIEW IF EXISTS dwh.v_news_week;
 DROP VIEW IF EXISTS dwh.v_news_month;
 DROP VIEW IF EXISTS dwh.v_news_6_months;
 DROP VIEW IF EXISTS dwh.v_news_all;
+DROP FUNCTION IF EXISTS dwh.f_news_staging_articles();
 
 CREATE OR REPLACE FUNCTION dwh.f_news_staging_articles()
 RETURNS TABLE (
@@ -24,7 +25,6 @@ RETURNS TABLE (
     id TEXT,
     url TEXT,
     title TEXT,
-    article_content TEXT,
     published_date TIMESTAMPTZ,
     s_created_ts TIMESTAMPTZ
 )
@@ -49,7 +49,6 @@ BEGIN
                     id::text,
                     url::text,
                     title::text,
-                    article_content::text,
                     published_date::timestamptz,
                     s_created_ts::timestamptz
              FROM %I.%I',
@@ -71,7 +70,6 @@ SELECT
     src.id,
     src.url,
     src.title,
-    src.article_content,
     summary.article_summary,
     summary.key_topic,
     summary.business_impact,

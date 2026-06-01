@@ -26,3 +26,8 @@ class DwhViewsSqlTest(unittest.TestCase):
         self.assertNotIn("FROM stg_ls_alliance_healthcare.stg_alliance_healthcare_ingest", sql)
         self.assertNotIn("FROM stg_ls_sanofi.stg_sanofi_ingest", sql)
         self.assertNotIn("FROM stg_ls_virbac.stg_virbac_ingest", sql)
+
+    def test_reporting_views_do_not_expose_full_article_content(self) -> None:
+        sql = DWH_SQL.read_text(encoding="utf-8")
+
+        self.assertNotIn("article_content", sql)

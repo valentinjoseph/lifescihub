@@ -27,6 +27,7 @@ The daily wrapper is `scripts/run_daily_pipeline.sh`. It runs:
 ```bash
 python -m orchestration.LS_MAIN_REFACTORED
 python scripts/generate_article_summaries.py
+python scripts/purge_summarized_article_content.py
 python scripts/export_dwh_views.py
 ./scripts/upload_export_to_gdrive.sh
 ```
@@ -152,6 +153,8 @@ published_date
 s_created_ts
 ```
 
+`article_content` is temporary processing data. The daily workflow purges it after a non-empty summary exists in `tech.ls_article_summary`, leaving the URL, title, dates, content hash, and summary fields for reporting.
+
 The `url` column is the primary key.
 
 ### Where are successful runs recorded?
@@ -257,6 +260,8 @@ Summaries are refreshed when:
 - the article content hash changed
 - the target model or prompt version changed
 - an existing fallback summary should be upgraded to AI
+
+After summaries are refreshed, `scripts/purge_summarized_article_content.py` removes full article bodies from staging tables for all summarized articles. If a summary needs to be regenerated after purge, the article must be fetched again from its source URL.
 
 ## Excel Export And Google Drive
 
