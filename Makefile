@@ -3,7 +3,7 @@
 VENV_PYTHON := .venv/bin/python
 ENV_FILE := infra/.env
 
-.PHONY: help setup install test dry-run scrape summarize db-views export sync refresh daily docker-up docker-rebuild docker-restart health status psql
+.PHONY: help setup install test dry-run scrape summarize purge-content db-views export sync refresh daily docker-up docker-rebuild docker-restart health status psql
 
 help:
 	@echo "Available targets:"
@@ -13,6 +13,7 @@ help:
 	@echo "  dry-run          Validate configuration and storage without scraping"
 	@echo "  scrape           Run the scraping pipeline"
 	@echo "  summarize        Refresh AI/article summaries"
+	@echo "  purge-content    Remove full article bodies after summaries exist"
 	@echo "  db-views         Apply DWH and DEA reporting views"
 	@echo "  export           Rebuild the Excel workbook"
 	@echo "  sync             Upload the latest workbook to Google Drive"
@@ -45,6 +46,9 @@ scrape:
 summarize:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py
 
+purge-content:
+	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/purge_summarized_article_content.py
+
 db-views:
 	@bash -lc 'source $(ENV_FILE) && docker exec -i liscihub-postgres psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1' < config/scripts/dwh_views.sql
 
@@ -55,7 +59,7 @@ sync:
 	set -a && source $(ENV_FILE) && set +a && ./scripts/upload_export_to_gdrive.sh
 
 refresh:
-	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/export_dwh_views.py && ./scripts/upload_export_to_gdrive.sh
+	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/purge_summarized_article_content.py && $(VENV_PYTHON) scripts/export_dwh_views.py && ./scripts/upload_export_to_gdrive.sh
 
 daily:
 	./scripts/run_daily_pipeline.sh

@@ -50,6 +50,7 @@ fi
 echo "${RUN_STARTED_AT} starting lifescience_watch daily pipeline"
 python -m orchestration.LS_MAIN_REFACTORED
 python scripts/generate_article_summaries.py
+python scripts/purge_summarized_article_content.py
 python scripts/export_dwh_views.py
 ./scripts/upload_export_to_gdrive.sh
 RUN_DAILY_STATUS="SUCCESS"

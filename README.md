@@ -1,16 +1,17 @@
 # Life Science Watch
 
-Life Science Watch is a secure news intelligence product for life-science companies. It collects articles from configured corporate sources, stores them in PostgreSQL, enriches them with AI summaries and business tags, exposes reporting views, and publishes a dashboard plus a refreshed Excel deliverable for business users.
+Life Science Watch is a secure news intelligence product for life-science companies. It collects articles from configured corporate sources, temporarily stores article text for summarization, enriches the records with AI summaries and business tags, purges the full article text, exposes reporting views, and publishes a dashboard plus a refreshed Excel deliverable for business users.
 
 ## Executive Summary
 
-Life Science Watch automates the end-to-end monitoring of company news across a selected life-science universe. Instead of manually visiting each corporate newsroom, the platform retrieves articles, normalizes the content, enriches it with AI-generated business summaries, and publishes the results through both a web dashboard and a scheduled spreadsheet export.
+Life Science Watch automates the end-to-end monitoring of company news across a selected life-science universe. Instead of manually visiting each corporate newsroom, the platform retrieves articles, normalizes the content long enough to summarize it, purges the full article text, and publishes AI-generated business summaries through both a web dashboard and a scheduled spreadsheet export.
 
 In practice, it functions as a lightweight competitive-intelligence and business-watch product:
 
 - source monitoring is centralized in PostgreSQL configuration tables
 - scraping runs automatically every day
-- AI turns long-form article content into short business-readable insights
+- AI turns temporarily retained article content into short business-readable insights
+- full article text is purged from staging once a summary exists
 - DWH views feed both the dashboard and DEA consumption marts
 - DEA views provide executive KPIs, company intelligence, topic/signal heatmaps, and priority news feeds
 - the latest workbook is automatically shared through Google Drive
@@ -21,12 +22,13 @@ The operational flow is intentionally simple and auditable:
 
 1. Source URLs and run modes are read from `tech.ls_load_sources` and `tech.ls_load_config`.
 2. The scraper loads company newsroom pages and article pages.
-3. Cleaned article records are stored in PostgreSQL staging schemas.
+3. Cleaned article records are stored temporarily in PostgreSQL staging schemas.
 4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
-5. DWH views assemble the article-level reporting layer for time windows such as last 7 days, month, 6 months, and full history.
-6. DEA views assemble decision-ready consumption marts from the DWH layer.
-7. A formatted Excel workbook is generated from those views.
-8. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
+5. Full article text is purged from staging for articles with a generated summary.
+6. DWH views assemble the article-level reporting layer for time windows such as last 7 days, month, 6 months, and full history.
+7. DEA views assemble decision-ready consumption marts from the DWH layer.
+8. A formatted Excel workbook is generated from those views.
+9. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
 
 ## Architecture
 
@@ -194,8 +196,9 @@ The daily scheduled job runs:
 
 1. scraping
 2. summary refresh
-3. workbook export
-4. Google Drive upload
+3. full article-content purge for summarized articles
+4. workbook export
+5. Google Drive upload
 
 Portable cron example:
 
@@ -517,6 +520,7 @@ make refresh
 - [orchestration/LS_MAIN_REFACTORED.py](orchestration/LS_MAIN_REFACTORED.py): main pipeline entrypoint
 - [core/scraper.py](core/scraper.py): scrape logic
 - [scripts/generate_article_summaries.py](scripts/generate_article_summaries.py): AI summary refresh
+- [scripts/purge_summarized_article_content.py](scripts/purge_summarized_article_content.py): retention cleanup for full article bodies
 - [scripts/export_dwh_views.py](scripts/export_dwh_views.py): workbook export
 - [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
 - [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.ls_load_monitoring`
