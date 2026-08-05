@@ -27,9 +27,7 @@ The daily wrapper is `scripts/run_daily_pipeline.sh`. It runs:
 ```bash
 python -m orchestration.LS_MAIN_REFACTORED
 python scripts/generate_article_summaries.py
-python scripts/purge_summarized_article_content.py
 python scripts/export_dwh_views.py
-./scripts/upload_export_to_gdrive.sh
 ```
 
 It also sends the daily monitoring report at process exit when `DAILY_REPORT_EMAIL_ENABLED=true`.
@@ -42,7 +40,7 @@ The pipeline reads sources from PostgreSQL:
 tech.ls_load_sources
 ```
 
-The relevant columns are `company_name`, `source_1`, `source_2`, `source_3`, `source_4`, and `source_5`.
+The relevant columns are `company_name`, `industry_sector`, `source_1`, `source_2`, `source_3`, `source_4`, and `source_5`.
 
 ### Where do company load modes come from?
 
@@ -122,22 +120,22 @@ POSTGRES_PORT=
 Core schemas:
 
 - `tech`: configuration, monitoring, request portal, article summaries, activity logs.
-- `stg_ls_<company>`: company-specific staging schemas.
+- `stg_<industry_sector>`: sector-specific staging schemas containing one `stg_<company>` table per company.
 - `dwh`: reporting views.
 - `dea`: executive consumption views.
 
 ### How are company staging schemas named?
 
-`db/table_manager.py` normalizes the company name into SQL-safe identifiers:
+`db/table_manager.py` normalizes the industry sector into the schema name and the company name into the table name:
 
 ```text
-Company Name -> stg_ls_company_name.stg_company_name_ingest
+Industry Sector + Company Name -> stg_industry_sector.stg_company_name
 ```
 
 Example:
 
 ```text
-PIERRE FABRE -> stg_ls_pierre_fabre.stg_pierre_fabre_ingest
+LIFESCIENCE + PIERRE FABRE -> stg_lifescience.stg_pierre_fabre
 ```
 
 ### What columns exist in staging tables?
@@ -188,15 +186,15 @@ That function discovers staging tables dynamically from PostgreSQL metadata:
 
 ```sql
 FROM pg_tables
-WHERE schemaname LIKE 'stg_ls_%'
-  AND tablename LIKE 'stg_%_ingest'
+WHERE schemaname ILIKE 'stg%'
+  AND tablename ILIKE 'stg%'
 ```
 
 This prevents the view from needing hardcoded company names.
 
 ### Do new company staging schemas automatically appear in `v_news_all`?
 
-Yes, after the staging schema/table exists and the DWH SQL has been applied. The function discovers matching `stg_ls_*` schemas dynamically.
+Yes, after the sector staging schema/table exists and the DWH SQL has been applied. The function discovers matching `stg_<industry_sector>.stg_*` tables dynamically.
 
 ### When should I run `make db-views`?
 
@@ -248,7 +246,23 @@ or:
 make summarize
 ```
 
-### What happens if `OPENAI_API_KEY` is missing?
+### Which AI provider generates summaries and chat answers?
+
+The current project configuration uses local Ollama for both article summaries and dashboard chat. Set `LLM_PROVIDER=ollama` to use the local Ollama service. The default local model is configured with:
+
+```bash
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_SUMMARY_MODEL=llama3.2:3b
+OLLAMA_CHAT_MODEL=llama3.2:3b
+OLLAMA_NUM_PREDICT=320
+SUMMARY_MAX_CONTENT_CHARS=6000
+```
+
+Inside Docker Compose, the application reaches Ollama at `http://ollama:11434`; on the host, Ollama is bound to `127.0.0.1:${OLLAMA_PORT:-11434}`.
+
+OpenAI support remains available as an alternate provider for future development: set `LLM_PROVIDER=openai` and provide `OPENAI_API_KEY` to use OpenAI instead.
+
+### What happens if no model provider is available?
 
 The summarizer uses a fallback extractive summary and rule-based classification. It still writes summary rows, but `summary_model` and `summary_status` identify that fallback behavior.
 
@@ -261,9 +275,9 @@ Summaries are refreshed when:
 - the target model or prompt version changed
 - an existing fallback summary should be upgraded to AI
 
-After summaries are refreshed, `scripts/purge_summarized_article_content.py` removes full article bodies from staging tables for all summarized articles. If a summary needs to be regenerated after purge, the article must be fetched again from its source URL.
+After summaries are refreshed, `scripts/generate_article_summaries.py` automatically removes full article bodies from staging tables for all summarized articles. If a summary needs to be regenerated after purge, the article must be fetched again from its source URL. Use `--skip-purge` only for debugging.
 
-## Excel Export And Google Drive
+## Excel Export
 
 ### What script creates the Excel workbook?
 
@@ -282,8 +296,8 @@ make export
 By default:
 
 ```text
-exports/lifescience_watch_news_latest.xlsx
-exports/lifescience_watch_news_YYYYMMDDTHHMMSSZ.xlsx
+exports/gtm_advisor_news_latest.xlsx
+exports/gtm_advisor_news_YYYYMMDDTHHMMSSZ.xlsx
 ```
 
 ### Which database objects are exported?
@@ -303,19 +317,6 @@ It also exports DEA views such as:
 - `dea.v_company_intelligence`
 - `dea.v_topic_signal_heatmap`
 - `dea.v_executive_news_feed`
-
-### How is Google Drive upload controlled?
-
-Google Drive upload is controlled by:
-
-```dotenv
-GDRIVE_UPLOAD_ENABLED=
-GDRIVE_REMOTE=
-GDRIVE_FOLDER=
-GDRIVE_UPLOAD_ARCHIVE=
-```
-
-The upload script is `scripts/upload_export_to_gdrive.sh` and uses `rclone`.
 
 ## Daily Monitoring Email
 
@@ -406,14 +407,15 @@ GET /health
 
 ### How is dashboard data queried?
 
-Dashboard data is read from DWH export views in `core/dashboard.py`. Filters are applied at SQL query time for company, period, and topic.
+Dashboard data is read from DWH export views in `core/dashboard.py`. Filters are applied at SQL query time for industry sector, company, period, and topic.
 
 ### How does chat work?
 
 `core/dashboard.py` fetches recent articles and either:
 
-- calls OpenAI when `OPENAI_API_KEY` is configured
-- returns a deterministic fallback answer when OpenAI is unavailable
+- calls local Ollama when `LLM_PROVIDER=ollama`
+- calls OpenAI when `LLM_PROVIDER=openai` and `OPENAI_API_KEY` is configured
+- returns a deterministic fallback answer if the configured provider call fails
 
 The chat response includes source article metadata.
 
@@ -624,8 +626,9 @@ SELECT COUNT(*) FROM tech.ls_article_summary;
 Verify:
 
 - `tech.ls_load_sources` has the source URL.
+- `tech.ls_load_sources` and `tech.ls_load_config` have the expected `industry_sector`.
 - `tech.ls_load_config` has an active `LS_SOURCE_SCRAPING` row.
-- the scraper created `stg_ls_<company>`.
+- the scraper created `stg_<industry_sector>.stg_<company>`.
 - `make db-views` has been applied.
 - `dwh.v_news_all` returns rows for that company.
 

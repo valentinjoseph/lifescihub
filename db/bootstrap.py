@@ -10,7 +10,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from db.session import engine
-from db.table_manager import PostgresTableManager
+from db.table_manager import PostgresTableManager, get_target_schema_and_table
 
 
 def ensure_core_tables() -> None:
@@ -22,6 +22,7 @@ def ensure_core_tables() -> None:
 
                 CREATE TABLE IF NOT EXISTS tech.ls_load_sources (
                     company_name TEXT PRIMARY KEY,
+                    industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE',
                     source_1 TEXT,
                     source_2 TEXT,
                     source_3 TEXT,
@@ -36,6 +37,7 @@ def ensure_core_tables() -> None:
                     company_name TEXT NOT NULL,
                     load_type TEXT,
                     active_flag TEXT,
+                    industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE',
                     selectors TEXT[],
                     s_created_ts TIMESTAMPTZ NOT NULL DEFAULT now(),
                     s_modified_ts TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -71,6 +73,30 @@ def ensure_core_tables() -> None:
                 """
             )
         )
+        connection.execute(
+            text("ALTER TABLE tech.ls_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+        )
+        connection.execute(
+            text(
+                """
+                UPDATE tech.ls_load_sources
+                SET industry_sector = 'LIFESCIENCE'
+                WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
+                """
+            )
+        )
+        connection.execute(
+            text("ALTER TABLE tech.ls_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+        )
+        connection.execute(
+            text(
+                """
+                UPDATE tech.ls_load_config
+                SET industry_sector = 'LIFESCIENCE'
+                WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
+                """
+            )
+        )
 
 
 def _table_has_rows(table_name: str) -> bool:
@@ -87,6 +113,7 @@ def seed_sources_from_csv(path: Path) -> None:
     rows = [
         {
             "company_name": str(row.get("COMPANY_NAME", "")).strip(),
+            "industry_sector": str(row.get("INDUSTRY_SECTOR", "LIFESCIENCE")).strip().upper() or "LIFESCIENCE",
             "source_1": str(row.get("SOURCE_1", "")).strip() or None,
             "source_2": str(row.get("SOURCE_2", "")).strip() or None,
             "source_3": str(row.get("SOURCE_3", "")).strip() or None,
@@ -104,11 +131,12 @@ def seed_sources_from_csv(path: Path) -> None:
             text(
                 """
                 INSERT INTO tech.ls_load_sources (
-                    company_name, source_1, source_2, source_3, source_4, source_5
+                    company_name, industry_sector, source_1, source_2, source_3, source_4, source_5
                 ) VALUES (
-                    :company_name, :source_1, :source_2, :source_3, :source_4, :source_5
+                    :company_name, :industry_sector, :source_1, :source_2, :source_3, :source_4, :source_5
                 )
                 ON CONFLICT (company_name) DO UPDATE SET
+                    industry_sector = EXCLUDED.industry_sector,
                     source_1 = EXCLUDED.source_1,
                     source_2 = EXCLUDED.source_2,
                     source_3 = EXCLUDED.source_3,
@@ -132,6 +160,7 @@ def seed_load_config_from_csv(path: Path) -> None:
             "company_name": str(row.get("COMPANY_NAME", "")).strip(),
             "load_type": str(row.get("LOAD_TYPE", "")).strip() or None,
             "active_flag": str(row.get("ACTIVE_FLAG", "")).strip() or None,
+            "industry_sector": str(row.get("INDUSTRY_SECTOR", "LIFESCIENCE")).strip().upper() or "LIFESCIENCE",
         }
         for _, row in df.iterrows()
         if str(row.get("FLOW_NAME", "")).strip() and str(row.get("COMPANY_NAME", "")).strip()
@@ -144,13 +173,14 @@ def seed_load_config_from_csv(path: Path) -> None:
             text(
                 """
                 INSERT INTO tech.ls_load_config (
-                    flow_name, company_name, load_type, active_flag
+                    flow_name, company_name, load_type, active_flag, industry_sector
                 ) VALUES (
-                    :flow_name, :company_name, :load_type, :active_flag
+                    :flow_name, :company_name, :load_type, :active_flag, :industry_sector
                 )
                 ON CONFLICT (flow_name, company_name) DO UPDATE SET
                     load_type = EXCLUDED.load_type,
                     active_flag = EXCLUDED.active_flag,
+                    industry_sector = EXCLUDED.industry_sector,
                     s_modified_ts = now()
                 """
             ),
@@ -245,8 +275,10 @@ def import_legacy_sqlite(sqlite_path: Path) -> None:
             rows = [dict(item) for item in connection.execute(f'SELECT * FROM "{table_name}"').fetchall()]
             if not rows:
                 continue
-            manager.ensure_company_table("local", schema_name, postgres_table)
-            manager.insert_rows(schema_name, postgres_table, rows)
+            company_name = schema_name.removeprefix("stg_ls_").replace("_", " ")
+            target_schema, target_table = get_target_schema_and_table(company_name)
+            manager.ensure_company_table("local", target_schema, target_table)
+            manager.insert_rows(target_schema, target_table, rows)
 
 
 def bootstrap_postgres(

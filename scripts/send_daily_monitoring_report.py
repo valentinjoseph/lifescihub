@@ -350,7 +350,7 @@ def main_with_args(argv: list[str] | None = None) -> int:
         started_at=args.started_at,
         ended_at=args.ended_at,
     )
-    project = os.getenv("DAILY_REPORT_PROJECT", "Life Science Watch")
+    project = os.getenv("DAILY_REPORT_PROJECT", "GTM Advisor")
     subject_prefix = os.getenv("DAILY_REPORT_SUBJECT_PREFIX", f"[{project}]")
     subject = f"{subject_prefix} daily monitoring {report_date}: {args.pipeline_status}"
     message = build_message(subject, body, html_body)

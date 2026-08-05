@@ -1,20 +1,20 @@
-# Life Science Watch
+# GTM Advisor
 
-Life Science Watch is a secure news intelligence product for life-science companies. It collects articles from configured corporate sources, temporarily stores article text for summarization, enriches the records with AI summaries and business tags, purges the full article text, exposes reporting views, and publishes a dashboard plus a refreshed Excel deliverable for business users.
+GTM Advisor is a secure multi-sector news intelligence product. It collects articles from configured corporate sources, temporarily stores article text for summarization, enriches the records with local AI summaries and business tags, purges the full article text, exposes reporting views, and publishes a dashboard plus a refreshed Excel deliverable for business users.
 
 ## Executive Summary
 
-Life Science Watch automates the end-to-end monitoring of company news across a selected life-science universe. Instead of manually visiting each corporate newsroom, the platform retrieves articles, normalizes the content long enough to summarize it, purges the full article text, and publishes AI-generated business summaries through both a web dashboard and a scheduled spreadsheet export.
+GTM Advisor automates the end-to-end monitoring of company news across configured industry sectors. Instead of manually visiting each corporate newsroom, the platform retrieves articles, normalizes the content long enough to summarize it, purges the full article text, and publishes AI-generated business summaries through both a web dashboard and a scheduled spreadsheet export.
 
 In practice, it functions as a lightweight competitive-intelligence and business-watch product:
 
 - source monitoring is centralized in PostgreSQL configuration tables
+- companies are grouped by `INDUSTRY_SECTOR`, with sector-specific staging schemas
 - scraping runs automatically every day
-- AI turns temporarily retained article content into short business-readable insights
+- local Ollama AI turns temporarily retained article content into short business-readable insights
 - full article text is purged from staging once a summary exists
 - DWH views feed both the dashboard and DEA consumption marts
 - DEA views provide executive KPIs, company intelligence, topic/signal heatmaps, and priority news feeds
-- the latest workbook is automatically shared through Google Drive
 
 ## Process Overview
 
@@ -27,19 +27,17 @@ The operational flow is intentionally simple and auditable:
 5. Full article text is purged from staging for articles with a generated summary.
 6. DWH views assemble the article-level reporting layer for time windows such as last 7 days, month, 6 months, and full history.
 7. DEA views assemble decision-ready consumption marts from the DWH layer.
-8. A formatted Excel workbook is generated from those views.
-9. The workbook is uploaded to Google Drive and refreshed automatically every day at `08:00 UTC`.
+8. A formatted Excel workbook is generated from those views and refreshed automatically every day at `08:00 UTC`.
 
 ## Architecture
 
-Life Science Watch is built as a small, modular Python product:
+GTM Advisor is built as a small, modular Python product:
 
 - `Python` orchestrates scraping, summarization, export, and automation
 - `PostgreSQL` stores configuration, monitoring, staging data, and summary outputs
 - `FastAPI` serves the dashboard, viewer access flow, and operational endpoints
-- `OpenAI` is used to transform article content into concise business-watch summaries
+- `Ollama` runs the configured local model for article summaries and dashboard chat
 - `Excel export` provides a business-friendly deliverable for stakeholders
-- `Google Drive` distributes the latest workbook automatically
 - an optional reverse proxy can terminate HTTPS and publish the site on your own domain
 
 At a high level, the architecture is:
@@ -56,11 +54,11 @@ DWH reporting views
 DEA consumption marts
         ->
 FastAPI dashboard / Excel export
-        ->
-Google Drive shared workbook + public website
 ```
 
 For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](docs/architecture/liscihub_technical_architecture.md).
+For local AI setup and verification, see [docs/OLLAMA.md](docs/OLLAMA.md).
+For company handoff guidance, see [docs/HANDOFF.md](docs/HANDOFF.md).
 
 ## Security Overview
 
@@ -85,7 +83,7 @@ The website is not a separate frontend application. It is served directly by the
 - HTML templates render the dashboard shell and the viewer login page
 - static CSS and JavaScript provide filtering, cards, and chat interactions
 - dashboard data comes from PostgreSQL reporting views
-- the news feed can be filtered independently by period, company, and topic
+- the news feed can be filtered independently by industry sector, period, company, and topic
 - the chat experience queries all available dashboard news and does not inherit the news-feed period, company, or topic filters
 - a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
 
@@ -96,12 +94,11 @@ This makes the product easy to operate: one Python application powers the API, t
 - reads source URLs from `tech.ls_load_sources`
 - reads `FULL` / `DELTA` mode from `tech.ls_load_config`
 - scrapes listing pages and article pages
-- stores staged articles in company-specific schemas
+- stores staged articles in `stg_<industry_sector>.stg_<company>` staging tables
 - generates AI summaries plus structured fields like topic and business impact
 - exposes DWH views for article-level reporting
 - exposes DEA views for decision-ready consumption marts
 - exports a styled Excel workbook
-- uploads the latest workbook to Google Drive
 
 ## Repo Map
 
@@ -114,7 +111,7 @@ lifescience_watch/
 ├── config/                     Runtime config loader and SQL assets
 │   └── scripts/                DWH and DEA views plus seed SQL
 ├── orchestration/              Main pipeline entrypoint
-├── scripts/                    Summaries, export, sync, and daily runner
+├── scripts/                    Summaries, export, and daily runner
 ├── infra/                      Local env files
 ├── postgres/init/              Postgres init SQL for the tech schema
 ├── data/                       Local bootstrap/example files and legacy SQLite
@@ -128,6 +125,8 @@ lifescience_watch/
 git clone <repo-url> lifescience_watch
 cd lifescience_watch
 make setup
+chmod +x scripts/setup_ollama.sh
+./scripts/setup_ollama.sh
 source .venv/bin/activate
 ```
 
@@ -163,7 +162,6 @@ make scrape
 make summarize
 make db-views
 make export
-make sync
 make refresh
 make daily
 make docker-rebuild
@@ -174,19 +172,40 @@ What they do:
 
 - `make scrape`: run the scraper pipeline
 - `make test`: run scraper/pipeline push checks
-- `make summarize`: refresh AI and structured summaries
+- `make summarize`: refresh structured summaries and purge summarized full article bodies
 - `make db-views`: create or refresh DWH and DEA SQL views in PostgreSQL
 - `make export`: rebuild the Excel workbook
-- `make sync`: upload the latest workbook to Google Drive
-- `make refresh`: summarize + export + sync
+- `make refresh`: summarize + export
 - `make daily`: run the full daily pipeline script
 
 ## Load Modes
 
-Company load modes are configured in `tech.ls_load_config`:
+Company load modes and sectors are configured in `tech.ls_load_config`:
 
 - `FULL`: scrape and consider all validated articles from the configured source pages.
 - `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.ls_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
+- `INDUSTRY_SECTOR`: routes each company into a sector staging schema such as `stg_lifescience`, `stg_banking`, or `stg_energy`.
+
+The supported sector labels currently used by the request portal are:
+
+```text
+LIFESCIENCE
+BANKING
+TELECOMMUNICATION
+ENERGY
+DEFENSE
+AIR
+SPACE
+TRANSPORT
+```
+
+Staging tables are named without an ingest suffix:
+
+```text
+tech.ls_load_config.INDUSTRY_SECTOR = TELECOMMUNICATION
+company_name = ORANGE
+target table = stg_telecommunication.stg_orange
+```
 
 In `DELTA` mode, known older articles are skipped. Articles without a usable `published_date` are still considered because some source sites do not expose dates reliably. The monitoring report's `attempted`, `fetched`, and `parsed` counts are post-DELTA eligible article counts, so they reflect articles considered for loading rather than every listing/article HTTP request made internally.
 
@@ -195,10 +214,8 @@ In `DELTA` mode, known older articles are skipped. Articles without a usable `pu
 The daily scheduled job runs:
 
 1. scraping
-2. summary refresh
-3. full article-content purge for summarized articles
-4. workbook export
-5. Google Drive upload
+2. summary refresh with automatic full article-content purge for summarized articles
+3. workbook export
 
 Portable cron example:
 
@@ -242,8 +259,8 @@ DAILY_REPORT_SMTP_SSL=false
 Optional labels:
 
 ```dotenv
-DAILY_REPORT_PROJECT="Life Science Watch"
-DAILY_REPORT_SUBJECT_PREFIX="[Life Science Watch]"
+DAILY_REPORT_PROJECT="GTM Advisor"
+DAILY_REPORT_SUBJECT_PREFIX="[GTM Advisor]"
 DAILY_REPORT_TIMEZONE=Europe/Paris
 ```
 
@@ -302,7 +319,7 @@ curl "${BASE_URL}/status" \
 curl -X POST "${BASE_URL}/run" \
   -H "X-Api-Key: ${API_AUTH_TOKEN}"
 
-curl "${BASE_URL}/api/dashboard/news?company=ALL&period=week&topic=financial" \
+curl "${BASE_URL}/api/dashboard/news?industry_sector=ALL&company=ALL&period=week&topic=financial" \
   -H "X-Viewer-Token: ${VIEWER_ACCESS_TOKEN}"
 
 curl -X POST "${BASE_URL}/api/dashboard/chat" \
@@ -326,10 +343,11 @@ With the default `API_BIND_PORT=8011`, that is `http://127.0.0.1:8011/dashboard`
 
 What it includes:
 
+- industry-sector dropdown with `ALL` plus active sectors from DWH data
 - company dropdown with `ALL` plus only the companies that have news in the selected period
 - period dropdown for `last 7 days`, `month`, `6 months`, and `all`
 - topic dropdown with `ALL` plus available `key_topic` values such as `financial`, `clinical`, `corporate`, `manufacturing`, `m&a`, or `regulatory`
-- filtered news cards backed by the current `dwh` export views; the feed applies period, company, and topic together
+- filtered news cards backed by the current `dwh` export views; the feed applies industry sector, period, company, and topic together
 - a chat panel where the user can ask questions like `what are the news from the last 7 days?`
 - chat answers query all available dashboard news and do not inherit the news-feed period, company, or topic filters
 - article sources below each chat answer, including summaries and URLs, so users can verify the agent response against the original material
@@ -433,8 +451,8 @@ DBeaver from another workstation:
 
 The workbook is written to:
 
-- `exports/lifescience_watch_news_latest.xlsx`
-- `exports/lifescience_watch_news_YYYYMMDDTHHMMSSZ.xlsx`
+- `exports/gtm_advisor_news_latest.xlsx`
+- `exports/gtm_advisor_news_YYYYMMDDTHHMMSSZ.xlsx`
 
 The exporter uses reader-friendly views:
 
@@ -489,32 +507,6 @@ Important behavior notes:
 
 This makes the current score a practical business-importance ranking rather than a probabilistic AI confidence score.
 
-## Google Drive Sync
-
-The daily pipeline can upload the latest workbook through `rclone`.
-
-Relevant env vars:
-
-- `GDRIVE_UPLOAD_ENABLED`
-- `GDRIVE_REMOTE`
-- `GDRIVE_FOLDER`
-- `GDRIVE_UPLOAD_ARCHIVE`
-
-Typical setup:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y rclone
-rclone config
-rclone lsd <your-rclone-remote>:
-```
-
-Then enable upload in `infra/.env` and run:
-
-```bash
-make refresh
-```
-
 ## Important Files
 
 - [orchestration/LS_MAIN_REFACTORED.py](orchestration/LS_MAIN_REFACTORED.py): main pipeline entrypoint
@@ -532,4 +524,4 @@ make refresh
 
 - Some sites still use anti-bot or challenge pages, so extraction quality varies by source.
 - `data/*.csv` and `data/lifescience_watch.db` remain as bootstrap/local compatibility assets.
-- The repo is designed to run from any checkout path. Keep machine-specific values in `infra/.env`, cron entries, reverse-proxy config, and rclone config rather than committing them to source files.
+- The repo is designed to run from any checkout path. Keep machine-specific values in `infra/.env`, cron entries, and reverse-proxy config rather than committing them to source files.

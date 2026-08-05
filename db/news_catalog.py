@@ -17,7 +17,8 @@ def discover_staging_tables() -> list[dict[str, str]]:
                 """
                 SELECT schemaname, tablename
                 FROM pg_tables
-                WHERE schemaname LIKE 'stg_ls_%'
+                WHERE schemaname ILIKE 'stg%'
+                  AND tablename ILIKE 'stg%'
                 ORDER BY schemaname, tablename
                 """
             )
@@ -27,8 +28,18 @@ def discover_staging_tables() -> list[dict[str, str]]:
     for row in rows:
         schema = row["schemaname"]
         table = row["tablename"]
-        company = schema.removeprefix("stg_ls_").replace("_", " ").upper()
-        staging_tables.append({"schema": schema, "table": table, "company_name": company})
+        company = table[4:] if table.lower().startswith("stg_") else table
+        company = company.replace("_", " ").upper()
+        industry_sector = schema[4:] if schema.lower().startswith("stg_") else schema
+        industry_sector = industry_sector.replace("_", " ").upper()
+        staging_tables.append(
+            {
+                "schema": schema,
+                "table": table,
+                "company_name": company,
+                "industry_sector": industry_sector,
+            }
+        )
     return staging_tables
 
 
@@ -41,6 +52,7 @@ def fetch_all_articles() -> pd.DataFrame:
                 f'''
                 SELECT
                     :company_name AS company_name,
+                    :industry_sector AS industry_sector,
                     id,
                     url,
                     title,
@@ -50,13 +62,26 @@ def fetch_all_articles() -> pd.DataFrame:
                 FROM "{item["schema"]}"."{item["table"]}"
                 '''
             )
-            frame = pd.read_sql_query(query, connection, params={"company_name": item["company_name"]})
+            frame = pd.read_sql_query(
+                query,
+                connection,
+                params={"company_name": item["company_name"], "industry_sector": item["industry_sector"]},
+            )
             if not frame.empty:
                 records.append(frame)
 
     if not records:
         return pd.DataFrame(
-            columns=["company_name", "id", "url", "title", "article_content", "published_date", "s_created_ts"]
+            columns=[
+                "company_name",
+                "industry_sector",
+                "id",
+                "url",
+                "title",
+                "article_content",
+                "published_date",
+                "s_created_ts",
+            ]
         )
 
     combined = pd.concat(records, ignore_index=True)

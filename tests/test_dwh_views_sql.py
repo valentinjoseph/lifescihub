@@ -16,16 +16,20 @@ class DwhViewsSqlTest(unittest.TestCase):
 
         self.assertIn("CREATE OR REPLACE FUNCTION dwh.f_news_staging_articles()", sql)
         self.assertIn("FROM pg_tables", sql)
-        self.assertIn("schemaname LIKE 'stg_ls_%'", sql)
-        self.assertIn("tablename LIKE 'stg_%_ingest'", sql)
+        self.assertIn("schemaname ILIKE 'stg%'", sql)
+        self.assertIn("tablename ILIKE 'stg%'", sql)
+        self.assertIn("regexp_replace(staging_table.schemaname, '^stg_', '', 'i')", sql)
+        self.assertIn("industry_sector TEXT", sql)
         self.assertIn("FROM dwh.f_news_staging_articles()", sql)
 
     def test_v_news_all_does_not_hardcode_company_staging_tables(self) -> None:
         sql = DWH_SQL.read_text(encoding="utf-8")
 
-        self.assertNotIn("FROM stg_ls_alliance_healthcare.stg_alliance_healthcare_ingest", sql)
-        self.assertNotIn("FROM stg_ls_sanofi.stg_sanofi_ingest", sql)
-        self.assertNotIn("FROM stg_ls_virbac.stg_virbac_ingest", sql)
+        self.assertNotIn("FROM stg_lifescience.stg_sanofi", sql)
+        self.assertNotIn("FROM stg_banking.stg_test_bank", sql)
+        self.assertNotIn("FROM stg_energy.stg_test_energy", sql)
+        self.assertNotIn("schemaname = 'stg_lifescience'", sql)
+        self.assertNotIn("schemaname = 'stg_banking'", sql)
 
     def test_reporting_views_do_not_expose_full_article_content(self) -> None:
         sql = DWH_SQL.read_text(encoding="utf-8")

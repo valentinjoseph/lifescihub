@@ -11,7 +11,6 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from openai import OpenAI
 from sqlalchemy import text
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -20,8 +19,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from db.news_catalog import fetch_articles_for_summarization
 from db.session import engine
+from core.llm_client import llm_provider, ollama_generate, ollama_summary_model, openai_client, openai_model
+from scripts.purge_summarized_article_content import purge_summarized_article_content
 
 SUMMARY_PROMPT_VERSION = "bw-v3"
+DEFAULT_SUMMARY_MAX_CONTENT_CHARS = 6000
 
 
 def normalize_whitespace(value: str) -> str:
@@ -104,9 +106,10 @@ def parse_json_object(raw_text: str) -> dict[str, object]:
         return json.loads(match.group(0))
 
 
-def ai_summary(client: OpenAI, model: str, company_name: str, title: str, content: str) -> dict[str, str | None]:
-    prompt = (
-        "You are writing for a life-sciences business watch spreadsheet used by executives. "
+def summary_prompt(company_name: str, title: str, content: str) -> str:
+    max_content_chars = int(os.getenv("SUMMARY_MAX_CONTENT_CHARS", str(DEFAULT_SUMMARY_MAX_CONTENT_CHARS)))
+    return (
+        "You are writing for a multi-sector business watch spreadsheet used by executives. "
         "Return valid JSON only with keys: article_summary, key_topic, business_impact, geography, signal_type. "
         "article_summary must be 2-4 concise sentences in plain English. Sentence 1 states the key announcement. "
         "Sentence 2 explains why it matters commercially, operationally, clinically, or strategically. "
@@ -117,13 +120,28 @@ def ai_summary(client: OpenAI, model: str, company_name: str, title: str, conten
         "Avoid hype, boilerplate, markdown, and bullet points.\n\n"
         f"Company: {company_name}\n"
         f"Title: {title}\n"
-        f"Article Content:\n{content[:12000]}"
+        f"Article Content:\n{content[:max_content_chars]}"
     )
+
+
+def ai_summary(client, model: str, company_name: str, title: str, content: str) -> dict[str, str | None]:
+    prompt = summary_prompt(company_name, title, content)
     response = client.responses.create(
         model=model,
         input=prompt,
     )
     payload = parse_json_object(response.output_text)
+    return {
+        "article_summary": normalize_whitespace(str(payload.get("article_summary") or "")),
+        "key_topic": normalize_whitespace(str(payload.get("key_topic") or "")) or None,
+        "business_impact": normalize_whitespace(str(payload.get("business_impact") or "")) or None,
+        "geography": normalize_whitespace(str(payload.get("geography") or "")) or None,
+        "signal_type": normalize_whitespace(str(payload.get("signal_type") or "")) or None,
+    }
+
+
+def ollama_summary(model: str, company_name: str, title: str, content: str) -> dict[str, str | None]:
+    payload = parse_json_object(ollama_generate(summary_prompt(company_name, title, content), model, json_mode=True))
     return {
         "article_summary": normalize_whitespace(str(payload.get("article_summary") or "")),
         "key_topic": normalize_whitespace(str(payload.get("key_topic") or "")) or None,
@@ -217,17 +235,26 @@ def load_existing_summaries() -> dict[str, dict[str, str]]:
     }
 
 
-def run(limit: int | None = None) -> tuple[int, int]:
+def run(limit: int | None = None, company_name: str | None = None) -> tuple[int, int]:
     ensure_summary_table()
     articles = fetch_articles_for_summarization()
+    if company_name:
+        articles = articles[articles["company_name"].astype(str).str.upper() == company_name.strip().upper()]
     if limit is not None:
         articles = articles.head(limit)
 
     existing_summaries = load_existing_summaries()
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
-    client = OpenAI(api_key=api_key) if api_key else None
-    target_ai_model = f"{model}:{SUMMARY_PROMPT_VERSION}" if client else "fallback-extractive-v1"
+    provider = llm_provider()
+    openai = openai_client() if provider == "openai" else None
+    openai_target_model = openai_model()
+    ollama_target_model = ollama_summary_model()
+    target_ai_model = (
+        f"openai:{openai_target_model}:{SUMMARY_PROMPT_VERSION}"
+        if openai
+        else f"ollama:{ollama_target_model}:{SUMMARY_PROMPT_VERSION}"
+        if provider == "ollama"
+        else "fallback-extractive-v1"
+    )
 
     processed = 0
     updated = 0
@@ -243,7 +270,7 @@ def run(limit: int | None = None) -> tuple[int, int]:
         digest = content_hash(content)
         existing_summary = existing_summaries.get(article_id)
         should_refresh_with_ai = bool(
-            client
+            provider in {"openai", "ollama"}
             and existing_summary
             and existing_summary["content_hash"] == digest
             and (
@@ -260,8 +287,12 @@ def run(limit: int | None = None) -> tuple[int, int]:
         error_message = None
 
         try:
-            if client:
-                summary_payload = ai_summary(client, model, company_name, title, content)
+            if openai:
+                summary_payload = ai_summary(openai, openai_target_model, company_name, title, content)
+                summary_model = target_ai_model
+                summary_status = "ai"
+            elif provider == "ollama":
+                summary_payload = ollama_summary(ollama_target_model, company_name, title, content)
                 summary_model = target_ai_model
                 summary_status = "ai"
             else:
@@ -302,9 +333,16 @@ def run(limit: int | None = None) -> tuple[int, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate article summaries for DWH views.")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit for test runs")
+    parser.add_argument("--company", default=None, help="Optional company name filter for targeted runs")
+    parser.add_argument(
+        "--skip-purge",
+        action="store_true",
+        help="Leave summarized article bodies in staging. Intended only for debugging.",
+    )
     args = parser.parse_args()
-    processed, updated = run(limit=args.limit)
-    print(f"processed={processed} updated={updated}")
+    processed, updated = run(limit=args.limit, company_name=args.company)
+    purged = 0 if args.skip_purge else purge_summarized_article_content()
+    print(f"processed={processed} updated={updated} purged_article_content={purged}")
     return 0
 
 

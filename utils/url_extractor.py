@@ -28,7 +28,10 @@ def _normalize_url(base_url: str, href: str) -> str:
 def _is_article_like_url(url: str, base_url: str, link_text: str) -> bool:
     parsed = urlparse(url)
     base_netloc = urlparse(base_url).netloc
-    if not parsed.scheme.startswith("http") or parsed.netloc != base_netloc:
+    host = parsed.netloc.lower()
+    base_host = base_netloc.lower()
+    same_orange_network = host.endswith(".orange.fr") and base_host.endswith(".orange.fr")
+    if not parsed.scheme.startswith("http") or (parsed.netloc != base_netloc and not same_orange_network):
         return False
 
     lowered = url.lower()
@@ -45,7 +48,6 @@ def _is_article_like_url(url: str, base_url: str, link_text: str) -> bool:
     if parsed.path.rstrip("/") == urlparse(base_url).path.rstrip("/"):
         return False
 
-    host = parsed.netloc.lower()
     if "alliance-healthcare.com" in host:
         return "/magazine/" in path or "/newsroom/press-releases/" in path
     if "sebia.com" in host:
@@ -58,9 +60,17 @@ def _is_article_like_url(url: str, base_url: str, link_text: str) -> bool:
         return "/article/" in path
     if "ceva.com" in host:
         return "/press-release/" in path or "/wildlife-research-fund/" in path
+    if "hsbc.com" in host:
+        return bool(
+            re.search(r"/news-and-views/views/hsbc-views/.+", path)
+            or re.search(r"/news-and-views/news/media-releases/.+", path)
+        )
+    if host.endswith(".orange.fr"):
+        return bool(re.search(r"/.+-cnt[0-9a-z]+\.html$", path))
 
     patterns = [
         r"/news/",
+        r"/news-and-views/",
         r"/press-release",
         r"/article/",
         r"/story/",
@@ -94,10 +104,12 @@ def extract_listing_links(html: str, base_url: str, max_items: int) -> List[str]
             ".resource a[href]",
             ".results a[href]",
             "a[href*='/press-release/']",
+            "a[href*='/news-and-views/']",
             "a[href*='/media-centre/press-releases/20']",
             "a[href*='/magazine/']",
             "a[href*='/ressources/']",
             "a[href*='/article/']",
+            "a[href*='CNT'][href$='.html']",
             "a[href*='20'][href*='-'][href*='Viatris']",
             "a[href*='20'][href*='-']",
         ]

@@ -27,14 +27,20 @@ class DashboardChatTests(unittest.TestCase):
             period="all",
         )
 
-    def test_dashboard_news_passes_topic_filter_to_payload(self) -> None:
+    def test_dashboard_news_passes_sector_company_and_topic_filters_to_payload(self) -> None:
         with patch("app.fetch_dashboard_payload") as fetch_dashboard_payload:
             fetch_dashboard_payload.return_value = {"rows": []}
 
-            response = dashboard_news(company="SANOFI", period="month", topic="financial")
+            response = dashboard_news(
+                industry_sector="LIFESCIENCE",
+                company="SANOFI",
+                period="month",
+                topic="financial",
+            )
 
         self.assertEqual(response, {"rows": []})
         fetch_dashboard_payload.assert_called_once_with(
+            industry_sector="LIFESCIENCE",
             company_name="SANOFI",
             period="month",
             topic="financial",
@@ -45,6 +51,7 @@ class DashboardChatTests(unittest.TestCase):
             [
                 {
                     "company_name": "SANOFI",
+                    "industry_sector": "LIFESCIENCE",
                     "published_date": pd.Timestamp("2026-04-20", tz="UTC"),
                     "priority_score": 88,
                     "title": "Financial update",
@@ -59,19 +66,35 @@ class DashboardChatTests(unittest.TestCase):
             ]
         )
 
-        with patch("core.dashboard.list_companies", return_value=["SANOFI"]), patch(
+        with patch("core.dashboard.list_industry_sectors", return_value=["LIFESCIENCE"]), patch(
+            "core.dashboard.list_companies",
+            return_value=["SANOFI"],
+        ) as list_companies, patch(
             "core.dashboard.list_topics",
             return_value=["financial"],
         ) as list_topics, patch("core.dashboard.fetch_news", return_value=news_frame) as fetch_news:
-            payload = fetch_dashboard_payload(company_name="SANOFI", period="month", topic="financial")
+            payload = fetch_dashboard_payload(
+                industry_sector="LIFESCIENCE",
+                company_name="SANOFI",
+                period="month",
+                topic="financial",
+            )
 
-        list_topics.assert_called_once_with(period="month", company_name="SANOFI")
+        list_companies.assert_called_once_with(period="month", industry_sector="LIFESCIENCE")
+        list_topics.assert_called_once_with(
+            period="month",
+            industry_sector="LIFESCIENCE",
+            company_name="SANOFI",
+        )
         fetch_news.assert_called_once_with(
+            industry_sector="LIFESCIENCE",
             company_name="SANOFI",
             period="month",
             topic="financial",
             limit=200,
         )
+        self.assertEqual(payload["filters"]["selected_industry_sector"], "LIFESCIENCE")
+        self.assertEqual(payload["filters"]["industry_sectors"], ["ALL", "LIFESCIENCE"])
         self.assertEqual(payload["filters"]["selected_topic"], "financial")
         self.assertEqual(payload["filters"]["topics"], ["ALL", "financial"])
         self.assertEqual(payload["summary"]["article_count"], 1)
@@ -81,6 +104,7 @@ class DashboardChatTests(unittest.TestCase):
             [
                 {
                     "company_name": "SANOFI",
+                    "industry_sector": "LIFESCIENCE",
                     "published_date": pd.NaT,
                     "priority_score": 72,
                     "title": "Undated update",
@@ -95,7 +119,10 @@ class DashboardChatTests(unittest.TestCase):
             ]
         )
 
-        with patch("core.dashboard.list_companies", return_value=["SANOFI"]), patch(
+        with patch("core.dashboard.list_industry_sectors", return_value=["LIFESCIENCE"]), patch(
+            "core.dashboard.list_companies",
+            return_value=["SANOFI"],
+        ), patch(
             "core.dashboard.list_topics",
             return_value=["financial"],
         ), patch("core.dashboard.fetch_news", return_value=news_frame):

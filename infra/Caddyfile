@@ -1,0 +1,28 @@
+{
+    email admin@{$LISCIHUB_PUBLIC_HOST:life-science-news.com}
+}
+
+(lifescience_watch_common) {
+    encode zstd gzip
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "interest-cohort=()"
+        X-Robots-Tag "noindex, nofollow, noarchive"
+        -Server
+    }
+
+    reverse_proxy lifescience_watch:8011
+}
+
+{$LISCIHUB_PUBLIC_HOST:life-science-news.com}, www.{$LISCIHUB_PUBLIC_HOST:life-science-news.com} {
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+    }
+    import lifescience_watch_common
+}

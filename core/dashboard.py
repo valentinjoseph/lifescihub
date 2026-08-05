@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from collections import defaultdict
 from typing import Any
 
 import pandas as pd
-from openai import OpenAI
 from sqlalchemy import text
 
 from db.session import engine
+from core.llm_client import llm_provider, ollama_chat_model, ollama_generate, openai_client, openai_model
 
 
 PERIOD_TO_VIEW = {
@@ -40,25 +39,56 @@ def _format_date(value: Any) -> str:
     return str(value)
 
 
-def list_companies(period: str = "all") -> list[str]:
+def list_industry_sectors(period: str = "all") -> list[str]:
     view_name = _resolve_view(period)
+    with engine.begin() as connection:
+        rows = connection.execute(
+            text(
+                f"""
+                SELECT DISTINCT industry_sector
+                FROM {view_name}
+                WHERE COALESCE(NULLIF(industry_sector, ''), '') <> ''
+                ORDER BY industry_sector
+                """
+            )
+        ).mappings().all()
+    return [str(row["industry_sector"]) for row in rows]
+
+
+def list_companies(period: str = "all", industry_sector: str | None = None) -> list[str]:
+    view_name = _resolve_view(period)
+    clauses = ["COALESCE(NULLIF(company_name, ''), '') <> ''"]
+    params: dict[str, Any] = {}
+    if industry_sector and industry_sector.upper() != "ALL":
+        clauses.append("industry_sector = :industry_sector")
+        params["industry_sector"] = industry_sector
+    where_clause = f"WHERE {' AND '.join(clauses)}"
     with engine.begin() as connection:
         rows = connection.execute(
             text(
                 f"""
                 SELECT DISTINCT company_name
                 FROM {view_name}
+                {where_clause}
                 ORDER BY company_name
                 """
-            )
+            ),
+            params,
         ).mappings().all()
     return [str(row["company_name"]) for row in rows]
 
 
-def list_topics(period: str = "all", company_name: str | None = None) -> list[str]:
+def list_topics(
+    period: str = "all",
+    industry_sector: str | None = None,
+    company_name: str | None = None,
+) -> list[str]:
     view_name = _resolve_view(period)
     clauses = ["COALESCE(NULLIF(key_topic, ''), '') <> ''"]
     params: dict[str, Any] = {}
+    if industry_sector and industry_sector.upper() != "ALL":
+        clauses.append("industry_sector = :industry_sector")
+        params["industry_sector"] = industry_sector
     if company_name and company_name.upper() != "ALL":
         clauses.append("company_name = :company_name")
         params["company_name"] = company_name
@@ -83,6 +113,7 @@ def _resolve_view(period: str) -> str:
 
 
 def fetch_news(
+    industry_sector: str | None = None,
     company_name: str | None = None,
     period: str = "week",
     topic: str | None = None,
@@ -91,6 +122,9 @@ def fetch_news(
     view_name = _resolve_view(period)
     clauses = []
     params: dict[str, Any] = {"limit": int(limit)}
+    if industry_sector and industry_sector.upper() != "ALL":
+        clauses.append("industry_sector = :industry_sector")
+        params["industry_sector"] = industry_sector
     if company_name and company_name.upper() != "ALL":
         clauses.append("company_name = :company_name")
         params["company_name"] = company_name
@@ -102,6 +136,7 @@ def fetch_news(
         f"""
         SELECT
             company_name,
+            industry_sector,
             published_date,
             priority_score,
             title,
@@ -127,29 +162,43 @@ def fetch_news(
 
 
 def fetch_dashboard_payload(
+    industry_sector: str | None = None,
     company_name: str | None = None,
     period: str = "week",
     topic: str | None = None,
     limit: int = 200,
 ) -> dict[str, Any]:
-    companies = list_companies(period=period)
+    sectors = list_industry_sectors(period=period)
+    selected_sector = industry_sector or "ALL"
+    if selected_sector.upper() != "ALL" and selected_sector not in sectors:
+        selected_sector = "ALL"
+
+    companies = list_companies(period=period, industry_sector=selected_sector)
     selected_company = company_name or "ALL"
     if selected_company.upper() != "ALL" and selected_company not in companies:
         selected_company = "ALL"
 
-    topics = list_topics(period=period, company_name=selected_company)
+    topics = list_topics(period=period, industry_sector=selected_sector, company_name=selected_company)
     selected_topic = topic or "ALL"
     if selected_topic.upper() != "ALL" and selected_topic not in topics:
         selected_topic = "ALL"
 
-    news_df = fetch_news(company_name=selected_company, period=period, topic=selected_topic, limit=limit)
+    news_df = fetch_news(
+        industry_sector=selected_sector,
+        company_name=selected_company,
+        period=period,
+        topic=selected_topic,
+        limit=limit,
+    )
 
     if news_df.empty:
         return {
             "filters": {
+                "selected_industry_sector": selected_sector,
                 "selected_company": selected_company,
                 "selected_period": period,
                 "selected_topic": selected_topic,
+                "industry_sectors": ["ALL", *sectors],
                 "companies": ["ALL", *companies],
                 "periods": available_periods(),
                 "topics": ["ALL", *topics],
@@ -178,9 +227,11 @@ def fetch_dashboard_payload(
 
     return {
         "filters": {
+            "selected_industry_sector": selected_sector,
             "selected_company": selected_company,
             "selected_period": period,
             "selected_topic": selected_topic,
+            "industry_sectors": ["ALL", *sectors],
             "companies": ["ALL", *companies],
             "periods": available_periods(),
             "topics": ["ALL", *topics],
@@ -241,6 +292,7 @@ def _article_sources(articles: pd.DataFrame, limit: int = 12) -> list[dict[str, 
         sources.append(
             {
                 "company_name": item.get("company_name", ""),
+                "industry_sector": item.get("industry_sector", ""),
                 "published_date": date_label,
                 "title": item.get("title", ""),
                 "article_summary": item.get("article_summary", ""),
@@ -254,8 +306,7 @@ def _article_sources(articles: pd.DataFrame, limit: int = 12) -> list[dict[str, 
 
 def chat_about_news(question: str, company_name: str | None = None, period: str = "week", limit: int = 60) -> dict[str, Any]:
     articles = fetch_news(company_name=company_name, period=period, limit=limit)
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+    provider = llm_provider()
 
     if articles.empty:
         return {
@@ -265,7 +316,8 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
             "sources": [],
         }
 
-    if not api_key:
+    openai = openai_client() if provider == "openai" else None
+    if provider not in {"openai", "ollama"} or (provider == "openai" and not openai):
         return {
             "answer": _fallback_chat_answer(question, articles, company_name, period),
             "model": "fallback-dashboard-v1",
@@ -273,13 +325,13 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
             "sources": _article_sources(articles),
         }
 
-    client = OpenAI(api_key=api_key)
     context_rows = []
     for item in articles.head(limit).to_dict(orient="records"):
         date_label = _format_date(item.get("published_date"))
         context_rows.append(
             {
                 "company_name": item["company_name"],
+                "industry_sector": item["industry_sector"],
                 "published_date": date_label,
                 "priority_score": item["priority_score"],
                 "title": item["title"],
@@ -292,9 +344,10 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
         )
 
     prompt = (
-        "You are a reporting assistant for a life-sciences business watch dashboard. "
+        "You are a reporting assistant for a multi-sector business watch dashboard. "
         "Answer only from the provided article context. "
         "Be concise but useful. Group by company when relevant. "
+        "Use industry sector when it helps distinguish context across sectors. "
         "If the user asks for news this week or similar, list company-by-company highlights. "
         "Mention titles, timing, and why the item matters. "
         "If there is no relevant information in the context, say so clearly.\n\n"
@@ -304,10 +357,16 @@ def chat_about_news(question: str, company_name: str | None = None, period: str 
         "Article context JSON:\n"
         f"{context_rows}"
     )
-    response = client.responses.create(model=model, input=prompt)
+    if openai:
+        model = openai_model()
+        response = openai.responses.create(model=model, input=prompt)
+        answer = response.output_text.strip()
+    else:
+        model = ollama_chat_model()
+        answer = ollama_generate(prompt, model)
     return {
-        "answer": response.output_text.strip(),
-        "model": model,
+        "answer": answer,
+        "model": f"{provider}:{model}",
         "article_count": int(len(articles)),
         "sources": _article_sources(articles),
     }

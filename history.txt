@@ -1,0 +1,212 @@
+commit 0075ae4f624ae4c22d6f277de3420d53ad583eb6
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Jun 1 09:28:58 2026 +0200
+
+    legal
+
+commit d98afa03ea64b4e49444f0ba29189ccbfc82949c
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Jun 1 09:08:16 2026 +0200
+
+    license
+
+commit ed3694cbceb3d24a77bef7982c19f2d2a6742313
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Tue May 26 13:04:44 2026 +0200
+
+    ai chat relevance
+
+commit 39baff09d2ca780e5c298ee94e4903216049c91d
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Thu May 14 14:27:48 2026 +0200
+
+    delta mode and doc
+
+commit be18f47941815d63d57426afd9e63b16b2757af8
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Wed May 13 13:47:06 2026 +0200
+
+    email monitoring
+
+commit c985b4d070c4bf8c0c92d56f84589bd1b4e4d7b1
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Thu May 7 12:09:17 2026 +0200
+
+    upgrade
+
+commit 782fdae994bc606fd60051b4e9feb0145f88e28a
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon May 4 09:06:39 2026 +0200
+
+    subtitle
+
+commit d884a02df78cc682b74979da1b3a6c2fd7f3ea89
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 27 17:42:14 2026 +0200
+
+    hide show button
+
+commit 47af661d64dcfe13e28be1462455ce1073c9c880
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 27 14:15:27 2026 +0200
+
+    account managementm
+
+commit 724605cd9cfa65a8da5eb6b4db19ab70c44834a9
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sat Apr 25 14:03:45 2026 +0200
+
+    activity src
+
+commit 5e436896feca17f65c595d5b62a399e76b89c3cb
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sat Apr 25 13:53:56 2026 +0200
+
+    activity monitoring
+
+commit 02d67a4e7e8c82024593284885b98f2e696a15db
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Fri Apr 24 17:57:59 2026 +0200
+
+    user request & RBAC
+
+commit 689e3b7203f362f5d02ab7346f0452a0c1b6b2fb
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Thu Apr 23 12:09:13 2026 +0200
+
+    user login
+
+commit 28a33f96bcda6fe0fe73848455ec548729c32805
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Thu Apr 23 11:56:50 2026 +0200
+
+    Add viewer login link to dashboard
+
+commit 17db8e80ca29edbf8137356646206995f12b8b54
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Thu Apr 23 11:51:16 2026 +0200
+
+    Add viewer username password login
+
+commit bcc3e46d7476b216506bcd029245d65af1942452
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Wed Apr 22 21:58:37 2026 +0200
+
+    package
+
+commit e69f1cc65684feffec021bcf50ed6876567c301b
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Wed Apr 22 21:53:44 2026 +0200
+
+    topic filter
+
+commit 9f29c4a871dcf582b724946c99bd0bf3d1fe4562
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Tue Apr 21 17:49:13 2026 +0200
+
+    repo clean
+
+commit a61ea907f5bfea3b341ea4a1148603afe8572ca2
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Tue Apr 21 17:44:42 2026 +0200
+
+    documentation
+
+commit 4a34fbe22081c8b92e9d516f7b70bb002cf68189
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Tue Apr 21 16:10:47 2026 +0200
+
+    dea
+
+commit 8599e4a8bdde7157d20461c1045233bf8522161e
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Tue Apr 21 15:48:26 2026 +0200
+
+    gold layer
+
+commit d3af579ac42c9b3bb8f9e69fc024350e89c9fe6e
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 20 12:05:10 2026 +0200
+
+    doc clean
+
+commit f283d525d17a9570194cdab1b8d8dc773aaca036
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 20 11:57:22 2026 +0200
+
+    download images
+
+commit b2d5594d8cd909b69c2cd4365e1158a58942c5e6
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 20 11:44:27 2026 +0200
+
+    schemas images
+
+commit d395df3afcec1a39e59ce99a5d9f8d66780f3ecd
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 20 11:27:52 2026 +0200
+
+    architecture
+
+commit 395e915b4a5b371e7a7681ff92d646121f2ae33b
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Mon Apr 20 11:17:38 2026 +0200
+
+    improvements & slide deck
+
+commit 2a00fea4f74bcbef5ed7be87ab97b971f6b2c7ad
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 14:39:33 2026 +0200
+
+    readme update
+
+commit a0706d61d48b7813cf9f9ce31a3b387e1981b2f0
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 14:30:23 2026 +0200
+
+    colours
+
+commit 1c3fb6b42b9a84e966c6fc105583d4bbf412b3b3
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 14:24:38 2026 +0200
+
+    frontend
+
+commit 8c43b8489074778ca79d6f3747c07a1ec1bb67b9
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 00:27:17 2026 +0200
+
+    scraping
+
+commit 8d5a3d281a1fa4879d0983b0e9a5326342fbff25
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 00:00:57 2026 +0200
+
+    security: harden service endpoints and secret handling
+    
+    - require token auth for health, status, and run endpoints
+    - disable FastAPI docs by default in deployed env
+    - exclude infra/.env from Docker build context
+    - document safer env bootstrapping with .env.example
+
+commit ef4b5b54388a3b78fc3246420f0954248dd9787c
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sun Apr 19 00:00:42 2026 +0200
+
+    feat: refine reporting workbook prioritization and readability
+    
+    - tune top-news thresholds for week and month views
+    - improve company color palette for easier row scanning
+    - align overview metrics and company summary with practical reporting use
+
+commit 37ef86e9f2e6cf98bdfc53525f110baf0c1274f0
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sat Apr 18 21:12:04 2026 +0200
+
+    drive export
+
+commit 93b55e61f7e987008e13373118316b1ecd6e0e88
+Author: valentinjoseph <valino_joseph@hotmail.com>
+Date:   Sat Apr 18 19:35:27 2026 +0200
+
+    first commit

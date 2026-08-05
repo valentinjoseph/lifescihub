@@ -1,4 +1,4 @@
-"""Standalone entry point for the Life Science Watch scraping pipeline."""
+"""Standalone entry point for the GTM Advisor scraping pipeline."""
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ from utils.data_quality import aggregate_metrics, validate_scraped_data
 LOGGER = logging.getLogger("lifescience_watch")
 FLOW_NAME = "LS_SOURCE_SCRAPING"
 CATALOG = "local"
+DEFAULT_INDUSTRY_SECTOR = "LIFESCIENCE"
 
 
 def configure_logging(verbose: bool) -> None:
@@ -39,9 +40,9 @@ def ensure_sources_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text(
-            "COMPANY_NAME,SOURCE_1,SOURCE_2,SOURCE_3,SOURCE_4,SOURCE_5\n"
-            "Moderna,https://investors.modernatx.com/news-releases/,,,,\n"
-            "Pfizer,https://www.pfizer.com/news/press-releases/,,,,\n",
+            "COMPANY_NAME,INDUSTRY_SECTOR,SOURCE_1,SOURCE_2,SOURCE_3,SOURCE_4,SOURCE_5\n"
+            "Moderna,LIFESCIENCE,https://investors.modernatx.com/news-releases/,,,,\n"
+            "Pfizer,LIFESCIENCE,https://www.pfizer.com/news/press-releases/,,,,\n",
             encoding="utf-8",
         )
 
@@ -50,9 +51,9 @@ def ensure_load_config_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text(
-            "COMPANY_NAME,FLOW_NAME,LOAD_TYPE,ACTIVE_FLAG\n"
-            "Moderna,LS_SOURCE_SCRAPING,FULL,Y\n"
-            "Pfizer,LS_SOURCE_SCRAPING,FULL,Y\n",
+            "COMPANY_NAME,FLOW_NAME,LOAD_TYPE,ACTIVE_FLAG,INDUSTRY_SECTOR\n"
+            "Moderna,LS_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n"
+            "Pfizer,LS_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n",
             encoding="utf-8",
         )
 
@@ -62,7 +63,7 @@ def load_sources_from_postgres() -> list[dict[str, str]]:
         df_sources = pd.read_sql_query(
             text(
                 """
-                SELECT company_name, source_1, source_2, source_3, source_4, source_5
+                SELECT company_name, industry_sector, source_1, source_2, source_3, source_4, source_5
                 FROM tech.ls_load_sources
                 ORDER BY company_name
                 """
@@ -75,6 +76,7 @@ def load_sources_from_postgres() -> list[dict[str, str]]:
     seen: set[tuple[str, str]] = set()
     for _, row in df_sources.iterrows():
         company_name = str(row.get("company_name", "")).strip()
+        industry_sector = str(row.get("industry_sector") or DEFAULT_INDUSTRY_SECTOR).strip().upper() or DEFAULT_INDUSTRY_SECTOR
         if not company_name:
             continue
         for column in source_columns:
@@ -85,7 +87,7 @@ def load_sources_from_postgres() -> list[dict[str, str]]:
             if key in seen:
                 continue
             seen.add(key)
-            records.append({"company_name": company_name, "url": url})
+            records.append({"company_name": company_name, "industry_sector": industry_sector, "url": url})
     return records
 
 
@@ -94,13 +96,13 @@ def load_sources(path: Path) -> list[dict[str, str]]:
     return load_sources_from_postgres()
 
 
-def load_company_config(path: Path) -> dict[str, str]:
+def load_company_config(path: Path) -> dict[str, dict[str, str]]:
     ensure_load_config_file(path)
     with engine.begin() as connection:
         cfg_df = pd.read_sql_query(
             text(
                 """
-                SELECT flow_name, company_name, load_type, active_flag
+                SELECT flow_name, company_name, load_type, active_flag, industry_sector
                 FROM tech.ls_load_config
                 WHERE flow_name = :flow_name
                 """
@@ -110,7 +112,10 @@ def load_company_config(path: Path) -> dict[str, str]:
         ).fillna("")
     active_df = cfg_df[cfg_df["active_flag"].astype(str).str.upper() == "Y"]
     return {
-        str(row["company_name"]).strip(): (str(row["load_type"]).strip().upper() or "FULL")
+        str(row["company_name"]).strip(): {
+            "load_type": (str(row["load_type"]).strip().upper() or "FULL"),
+            "industry_sector": (str(row.get("industry_sector") or DEFAULT_INDUSTRY_SECTOR).strip().upper() or DEFAULT_INDUSTRY_SECTOR),
+        }
         for _, row in active_df.iterrows()
         if str(row["company_name"]).strip()
     }
@@ -124,6 +129,7 @@ def persist_company_config(path: Path, cfg_df: pd.DataFrame) -> None:
             "company_name": str(row["company_name"]),
             "load_type": str(row["load_type"]),
             "active_flag": str(row["active_flag"]),
+            "industry_sector": str(row.get("industry_sector") or DEFAULT_INDUSTRY_SECTOR),
         }
         for row in cfg_df.to_dict(orient="records")
     ]
@@ -132,8 +138,8 @@ def persist_company_config(path: Path, cfg_df: pd.DataFrame) -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_load_config (flow_name, company_name, load_type, active_flag)
-                VALUES (:flow_name, :company_name, :load_type, :active_flag)
+                INSERT INTO tech.ls_load_config (flow_name, company_name, load_type, active_flag, industry_sector)
+                VALUES (:flow_name, :company_name, :load_type, :active_flag, :industry_sector)
                 """
             ),
             rows,
@@ -145,7 +151,7 @@ def update_successful_companies_to_delta(path: Path, companies: list[str]) -> No
         return
     with engine.begin() as connection:
         cfg_df = pd.read_sql_query(
-            text("SELECT flow_name, company_name, load_type, active_flag FROM tech.ls_load_config"),
+            text("SELECT flow_name, company_name, load_type, active_flag, industry_sector FROM tech.ls_load_config"),
             connection,
         ).fillna("")
     mask = cfg_df["company_name"].isin(companies) & (cfg_df["flow_name"] == FLOW_NAME)
@@ -218,8 +224,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
     delta_cutoffs = {
         company_name: monitor.get_last_success_timestamp(company_name)
-        for company_name, load_type in cfg_map.items()
-        if load_type == "DELTA"
+        for company_name, company_config in cfg_map.items()
+        if company_config["load_type"] == "DELTA"
     }
 
     records, scrape_metrics, company_metrics = scrape_sources(
@@ -238,10 +244,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
     failed_companies: list[str] = []
 
     for company_name in sorted({source["company_name"] for source in sources}):
-        target_schema, target_table = get_target_schema_and_table(company_name)
+        company_config = cfg_map.get(company_name, {"load_type": "FULL", "industry_sector": DEFAULT_INDUSTRY_SECTOR})
+        load_type = company_config["load_type"]
+        industry_sector = company_config["industry_sector"]
+        target_schema, target_table = get_target_schema_and_table(company_name, industry_sector)
         ensure_schema_and_table(storage, CATALOG, target_schema, target_table)
 
-        load_type = cfg_map.get(company_name, "FULL")
         company_df = validated_df[validated_df["company_name"] == company_name].copy()
         company_df = company_df[[column for column in RESULT_COLUMNS if column in company_df.columns]]
 
@@ -259,6 +267,22 @@ def run_pipeline(args: argparse.Namespace) -> int:
             ].copy()
 
         company_metric_summary = build_monitoring_metrics(company_df, company_metrics.get(company_name, {}))
+        source_failed_without_rows = company_df.empty and int(company_metric_summary.get("error_count", 0)) > 0
+
+        if source_failed_without_rows:
+            failed_companies.append(company_name)
+            monitor.log_completion(
+                company_name=company_name,
+                target_schema=target_schema,
+                target_table=target_table,
+                load_type=load_type,
+                status="FAILURE",
+                message="Source scrape failed before any valid records were parsed",
+                records_inserted=0,
+                metrics=company_metric_summary,
+            )
+            LOGGER.warning("%s -> source scrape failed with no valid records", company_name)
+            continue
 
         try:
             inserted_count = merge_data(storage, CATALOG, target_schema, target_table, company_write_df)
@@ -298,7 +322,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the Life Science Watch scraping pipeline locally.")
+    parser = argparse.ArgumentParser(description="Run the GTM Advisor scraping pipeline locally.")
     parser.add_argument("--sources", default=str(PROJECT_ROOT / "data" / "sources.csv"), help="CSV file containing company sources")
     parser.add_argument(
         "--load-config",

@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 from unittest.mock import patch
 
 from core.scraper import scrape_source
+from utils.url_extractor import extract_listing_links
 
 
 class FakeResponse:
@@ -29,6 +30,55 @@ class FakeSession:
 
 
 class ScrapeSourceTests(unittest.TestCase):
+    def test_listing_extractor_accepts_hsbc_news_and_views_articles(self) -> None:
+        listing_url = "https://www.hsbc.com/news-and-views/views"
+        listing_html = """
+        <html>
+          <body>
+            <a href="/news-and-views/news">News</a>
+            <a href="/news-and-views/views/hsbc-views">All HSBC views</a>
+            <a href="/news-and-views/views/hsbc-views/our-strategy-built-on-trust-accelerated-with-ai">
+              Read more
+            </a>
+          </body>
+        </html>
+        """
+
+        links = extract_listing_links(listing_html, listing_url, 10)
+
+        self.assertEqual(
+            links,
+            [
+                "https://www.hsbc.com/news-and-views/views/hsbc-views/our-strategy-built-on-trust-accelerated-with-ai"
+            ],
+        )
+
+    def test_listing_extractor_accepts_orange_cnt_articles_across_orange_subdomains(self) -> None:
+        listing_url = "https://actu.orange.fr/"
+        listing_html = """
+        <html>
+          <body>
+            <a href="https://sports.orange.fr/rugby/top-14/toulouse/article/toulouse-noves-s-attendait-a-voir-ramos-partir-exclu-CNT000002r0fAN.html">
+              Toulouse : Noves s'attendait a voir Ramos partir
+            </a>
+            <a href="https://actu.orange.fr/france/diaporamas/mort-de-marie-paule-belle-incendies-en-gironde-CNT000002qMp3Q.html">
+              Les 10 actualites du 25 au 31 juillet
+            </a>
+            <a href="/meteo">Meteo</a>
+          </body>
+        </html>
+        """
+
+        links = extract_listing_links(listing_html, listing_url, 10)
+
+        self.assertEqual(
+            links,
+            [
+                "https://sports.orange.fr/rugby/top-14/toulouse/article/toulouse-noves-s-attendait-a-voir-ramos-partir-exclu-CNT000002r0fAN.html",
+                "https://actu.orange.fr/france/diaporamas/mort-de-marie-paule-belle-incendies-en-gironde-CNT000002qMp3Q.html",
+            ],
+        )
+
     def test_scrape_source_retrieves_article_records_from_listing_page(self) -> None:
         listing_url = "https://example.com/news"
         article_url = "https://example.com/news/article-1"

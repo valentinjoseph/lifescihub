@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Life Science Watch Request Portal</title>
+  <title>GTM Advisor Request Portal</title>
   <link rel="stylesheet" href="/static/dashboard.css">
 </head>
 <body>
   <main class="page-shell">
     <section class="hero">
       <div>
-        <p class="eyebrow">Life Science Watch</p>
+        <p class="eyebrow">GTM Advisor</p>
         <h1>Company Requests</h1>
         <p class="subtitle">Submit a company/source addition for review, or approve pending requests into the `tech` scraping tables.</p>
         <div class="hero-ribbon">
@@ -38,12 +38,20 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Submit Request</h2>
-          <p>Add a company name and a source URL for admin review.</p>
+          <p>Add a company name, sector, and source URL for admin review.</p>
         </div>
         <form method="post" action="/requests/submit" class="request-form">
           <label for="company_name">
             <span>Company Name</span>
             <input id="company_name" name="company_name" type="text" placeholder="Example: EXAMPLE THERAPEUTICS" required>
+          </label>
+          <label for="industry_sector">
+            <span>Industry Sector</span>
+            <select id="industry_sector" name="industry_sector" required>
+              {% for sector in industry_sectors %}
+              <option value="{{ sector }}">{{ sector }}</option>
+              {% endfor %}
+            </select>
           </label>
           <label for="source_url">
             <span>Source URL</span>
@@ -68,6 +76,7 @@
                 <div>
                   <h3>{{ item.company_name }}</h3>
                   <p class="meta-line">{{ item.source_url }}</p>
+                  <p class="meta-line">Industry sector: {{ item.requested_industry_sector }}</p>
                 </div>
                 <span class="request-pill">{{ item.review_status }}</span>
               </div>
@@ -81,6 +90,14 @@
               {% if is_admin and item.review_status == "PENDING" %}
               <div class="request-review-grid">
                 <form method="post" action="/requests/{{ item.request_id }}/approve">
+                  <label>
+                    <span>Industry Sector</span>
+                    <select name="industry_sector" required>
+                      {% for sector in industry_sectors %}
+                      <option value="{{ sector }}"{% if sector == item.requested_industry_sector %} selected{% endif %}>{{ sector }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
                   <label>
                     <span>Approval note</span>
                     <input name="review_note" type="text" placeholder="Optional note for the submitter">
