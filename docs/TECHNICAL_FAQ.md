@@ -28,7 +28,6 @@ The daily wrapper is `scripts/run_daily_pipeline.sh`. It runs:
 python -m orchestration.LS_MAIN_REFACTORED
 python scripts/generate_article_summaries.py
 python scripts/export_dwh_views.py
-./scripts/upload_export_to_gdrive.sh
 ```
 
 It also sends the daily monitoring report at process exit when `DAILY_REPORT_EMAIL_ENABLED=true`.
@@ -249,15 +248,19 @@ make summarize
 
 ### Which AI provider generates summaries and chat answers?
 
-Set `LLM_PROVIDER=ollama` to use the local Ollama service. The default local model is configured with:
+The current project configuration uses local Ollama for both article summaries and dashboard chat. Set `LLM_PROVIDER=ollama` to use the local Ollama service. The default local model is configured with:
 
 ```bash
 OLLAMA_MODEL=llama3.2:3b
 OLLAMA_SUMMARY_MODEL=llama3.2:3b
 OLLAMA_CHAT_MODEL=llama3.2:3b
+OLLAMA_NUM_PREDICT=320
+SUMMARY_MAX_CONTENT_CHARS=6000
 ```
 
-Set `LLM_PROVIDER=openai` and provide `OPENAI_API_KEY` to use OpenAI instead.
+Inside Docker Compose, the application reaches Ollama at `http://ollama:11434`; on the host, Ollama is bound to `127.0.0.1:${OLLAMA_PORT:-11434}`.
+
+OpenAI support remains available as an alternate provider for future development: set `LLM_PROVIDER=openai` and provide `OPENAI_API_KEY` to use OpenAI instead.
 
 ### What happens if no model provider is available?
 
@@ -274,7 +277,7 @@ Summaries are refreshed when:
 
 After summaries are refreshed, `scripts/generate_article_summaries.py` automatically removes full article bodies from staging tables for all summarized articles. If a summary needs to be regenerated after purge, the article must be fetched again from its source URL. Use `--skip-purge` only for debugging.
 
-## Excel Export And Google Drive
+## Excel Export
 
 ### What script creates the Excel workbook?
 
@@ -293,8 +296,8 @@ make export
 By default:
 
 ```text
-exports/lifescience_watch_news_latest.xlsx
-exports/lifescience_watch_news_YYYYMMDDTHHMMSSZ.xlsx
+exports/gtm_advisor_news_latest.xlsx
+exports/gtm_advisor_news_YYYYMMDDTHHMMSSZ.xlsx
 ```
 
 ### Which database objects are exported?
@@ -314,19 +317,6 @@ It also exports DEA views such as:
 - `dea.v_company_intelligence`
 - `dea.v_topic_signal_heatmap`
 - `dea.v_executive_news_feed`
-
-### How is Google Drive upload controlled?
-
-Google Drive upload is controlled by:
-
-```dotenv
-GDRIVE_UPLOAD_ENABLED=
-GDRIVE_REMOTE=
-GDRIVE_FOLDER=
-GDRIVE_UPLOAD_ARCHIVE=
-```
-
-The upload script is `scripts/upload_export_to_gdrive.sh` and uses `rclone`.
 
 ## Daily Monitoring Email
 
@@ -417,14 +407,15 @@ GET /health
 
 ### How is dashboard data queried?
 
-Dashboard data is read from DWH export views in `core/dashboard.py`. Filters are applied at SQL query time for company, period, and topic.
+Dashboard data is read from DWH export views in `core/dashboard.py`. Filters are applied at SQL query time for industry sector, company, period, and topic.
 
 ### How does chat work?
 
 `core/dashboard.py` fetches recent articles and either:
 
-- calls OpenAI when `OPENAI_API_KEY` is configured
-- returns a deterministic fallback answer when OpenAI is unavailable
+- calls local Ollama when `LLM_PROVIDER=ollama`
+- calls OpenAI when `LLM_PROVIDER=openai` and `OPENAI_API_KEY` is configured
+- returns a deterministic fallback answer if the configured provider call fails
 
 The chat response includes source article metadata.
 

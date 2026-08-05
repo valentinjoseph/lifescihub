@@ -224,8 +224,8 @@ def style_sheet(writer: pd.ExcelWriter, sheet_name: str, frame: pd.DataFrame, co
 def export_workbook(output_dir: Path) -> tuple[Path, Path, dict[str, int]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    latest_path = output_dir / "lifescience_watch_news_latest.xlsx"
-    archive_path = output_dir / f"lifescience_watch_news_{timestamp}.xlsx"
+    latest_path = output_dir / "gtm_advisor_news_latest.xlsx"
+    archive_path = output_dir / f"gtm_advisor_news_{timestamp}.xlsx"
     sheet_counts: dict[str, int] = {}
 
     frames: dict[str, pd.DataFrame] = {}

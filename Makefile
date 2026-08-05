@@ -3,7 +3,7 @@
 VENV_PYTHON := .venv/bin/python
 ENV_FILE := infra/.env
 
-.PHONY: help setup install test dry-run scrape summarize purge-content db-views export sync refresh daily docker-up docker-rebuild docker-restart health status psql
+.PHONY: help setup install test dry-run scrape summarize purge-content db-views export refresh daily docker-up docker-rebuild docker-restart health status psql
 
 help:
 	@echo "Available targets:"
@@ -16,8 +16,7 @@ help:
 	@echo "  purge-content    Remove full article bodies after summaries exist"
 	@echo "  db-views         Apply DWH and DEA reporting views"
 	@echo "  export           Rebuild the Excel workbook"
-	@echo "  sync             Upload the latest workbook to Google Drive"
-	@echo "  refresh          Run summarize + export + Google Drive sync"
+	@echo "  refresh          Run summarize + export"
 	@echo "  daily            Run the full daily pipeline"
 	@echo "  docker-up        Start the Docker stack"
 	@echo "  docker-rebuild   Rebuild and restart the app container"
@@ -55,11 +54,8 @@ db-views:
 export:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/export_dwh_views.py
 
-sync:
-	set -a && source $(ENV_FILE) && set +a && ./scripts/upload_export_to_gdrive.sh
-
 refresh:
-	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/export_dwh_views.py && ./scripts/upload_export_to_gdrive.sh
+	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/export_dwh_views.py
 
 daily:
 	./scripts/run_daily_pipeline.sh

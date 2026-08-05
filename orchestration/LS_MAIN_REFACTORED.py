@@ -1,4 +1,4 @@
-"""Standalone entry point for the Life Science Watch scraping pipeline."""
+"""Standalone entry point for the GTM Advisor scraping pipeline."""
 
 from __future__ import annotations
 
@@ -322,7 +322,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the Life Science Watch scraping pipeline locally.")
+    parser = argparse.ArgumentParser(description="Run the GTM Advisor scraping pipeline locally.")
     parser.add_argument("--sources", default=str(PROJECT_ROOT / "data" / "sources.csv"), help="CSV file containing company sources")
     parser.add_argument(
         "--load-config",

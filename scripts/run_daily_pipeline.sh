@@ -47,10 +47,9 @@ if ! flock -n 9; then
   exit 0
 fi
 
-echo "${RUN_STARTED_AT} starting lifescience_watch daily pipeline"
+echo "${RUN_STARTED_AT} starting GTM Advisor daily pipeline"
 python -m orchestration.LS_MAIN_REFACTORED
 python scripts/generate_article_summaries.py
 python scripts/export_dwh_views.py
-./scripts/upload_export_to_gdrive.sh
 RUN_DAILY_STATUS="SUCCESS"
-echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') completed lifescience_watch daily pipeline"
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') completed GTM Advisor daily pipeline"

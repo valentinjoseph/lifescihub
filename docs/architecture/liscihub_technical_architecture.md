@@ -1,6 +1,6 @@
-# LISCIHUB Technical Architecture
+# GTM Advisor Technical Architecture
 
-This document describes the technical architecture behind Life Science Watch / LISCIHUB. It is intended for engineering reviews, corporate presentations, and handover documentation.
+This document describes the technical architecture behind GTM Advisor. It is intended for engineering reviews, corporate presentations, and handover documentation.
 
 ## End-To-End System Schema
 
@@ -26,6 +26,7 @@ flowchart LR
         subgraph Compose["lifescience_watch Docker Compose stack"]
             App["lifescience_watch<br/>FastAPI + Python pipeline"]
             Postgres["liscihub-postgres<br/>PostgreSQL 16"]
+            OllamaSvc["liscihub-ollama<br/>local Ollama model server"]
         end
 
         subgraph Repo["Application code"]
@@ -33,14 +34,13 @@ flowchart LR
             Scraper["core/scraper.py<br/>utils/url_extractor.py<br/>utils/robots_compliance.py"]
             Summaries["scripts/generate_article_summaries.py"]
             Exporter["scripts/export_dwh_views.py"]
-            DriveSync["scripts/upload_export_to_gdrive.sh"]
             ViewsSQL["config/scripts/dwh_views.sql"]
         end
 
         subgraph Files["Local file outputs"]
             Logs["outputs/*.log<br/>outputs/latest_results.csv"]
-            Workbook["exports/lifescience_watch_news_latest.xlsx"]
-            Archive["exports/lifescience_watch_news_*.xlsx"]
+            Workbook["exports/gtm_advisor_news_latest.xlsx"]
+            Archive["exports/gtm_advisor_news_*.xlsx"]
         end
     end
 
@@ -52,7 +52,8 @@ flowchart LR
     end
 
     subgraph AI["AI enrichment"]
-        OpenAI["OpenAI API<br/>summary + topic + impact + signal"]
+        LocalModel["Ollama llama3.2:3b<br/>summary + topic + impact + chat"]
+        OpenAI["Optional OpenAI provider<br/>disabled unless configured"]
     end
 
     subgraph Delivery["Delivery layer"]
@@ -60,7 +61,6 @@ flowchart LR
         DNS["DNS provider<br/>your-domain.example"]
         Dashboard["Web dashboard<br/>filters + news cards + chat"]
         Viewer["Viewer login<br/>secure read-only cookie"]
-        GDrive["Google Drive<br/>shared Excel workbook"]
         ExcelUsers["Business users<br/>Excel consumption"]
     end
 
@@ -78,7 +78,9 @@ flowchart LR
     Scraper --> Staging
 
     Orchestrator --> Tech
-    Summaries --> OpenAI
+    Summaries --> LocalModel
+    App --> LocalModel
+    LocalModel --> OllamaSvc
     Summaries --> Tech
     Staging --> DWH
     Tech --> DWH
@@ -89,9 +91,7 @@ flowchart LR
     DEA --> Exporter
     Exporter --> Workbook
     Exporter --> Archive
-    DriveSync --> GDrive
-    Workbook --> DriveSync
-    GDrive --> ExcelUsers
+    Workbook --> ExcelUsers
 
     App --> Postgres
     Postgres --> Tech
@@ -115,9 +115,8 @@ sequenceDiagram
     participant Runner as run_daily_pipeline.sh
     participant Scrape as Scraper pipeline
     participant PG as liscihub Postgres
-    participant AI as OpenAI API
+    participant AI as Local Ollama
     participant Export as Excel exporter
-    participant Drive as Google Drive
 
     Cron->>Runner: Start daily job at 08:00 UTC
     Runner->>Runner: Acquire flock lock
@@ -134,8 +133,6 @@ sequenceDiagram
     Runner->>Export: python scripts/export_dwh_views.py
     Export->>PG: Read dwh and dea export views
     Export->>Export: Build styled Excel workbook
-    Export->>Drive: ./scripts/upload_export_to_gdrive.sh
-    Drive-->>Runner: Upload complete
     Runner->>Runner: Release lock and write logs
 ```
 
@@ -247,13 +244,12 @@ flowchart LR
 | Admin | Developer workstation | Local or remote development and operational control |
 | Host | Local machine or deployment server | Runs Docker, Postgres, cron, exports, and optional proxy integration |
 | App | `lifescience_watch` container | FastAPI dashboard, API, chat, and operational endpoints |
-| Database | `liscihub-postgres` | Dedicated PostgreSQL database for LISCIHUB |
+| Database | `liscihub-postgres` | Dedicated PostgreSQL database for GTM Advisor |
 | Ingestion | `orchestration/LS_MAIN_REFACTORED.py` | Main scrape pipeline and company-level loading |
 | Scraping | `core/scraper.py`, `utils/*` | Source fetch, robots handling, URL extraction, article parsing |
-| AI | `scripts/generate_article_summaries.py` | OpenAI-backed summaries and structured business-watch fields |
+| AI | `core/llm_client.py`, `scripts/generate_article_summaries.py` | Local Ollama summaries, dashboard chat, and optional OpenAI fallback |
 | Reporting | `config/scripts/dwh_views.sql` | DWH views, priority score, top-news/export views, and DEA consumption marts |
 | Export | `scripts/export_dwh_views.py` | Styled Excel workbook generation |
-| Distribution | `scripts/upload_export_to_gdrive.sh` | `rclone` upload to Google Drive |
 | Public site | Reverse proxy + DNS provider | Optional HTTPS reverse proxy and public domain |
 
 ## Operational Notes
@@ -261,5 +257,6 @@ flowchart LR
 - The scheduled job runs at `08:00 UTC` from the host crontab when cron is configured.
 - `week` in the dashboard means a rolling last-7-days window, not a Monday-start calendar week.
 - The app is bound locally and reached publicly only through the reverse proxy path.
+- Ollama is also bound locally by Docker Compose and is reached by the app at `http://ollama:11434`.
 - Viewer access uses a login form and secure cookie; admin operations require the admin token.
 - Dashboard chat responses include the article summaries and URLs used as sources to help users verify the answer.

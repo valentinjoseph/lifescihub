@@ -1,1 +1,1 @@
-"""Test suite for Life Science Watch."""
+"""Test suite for GTM Advisor."""

@@ -1,4 +1,4 @@
-"""Homelab-friendly web wrapper for the Life Science Watch pipeline."""
+"""Homelab-friendly web wrapper for the GTM Advisor pipeline."""
 
 from __future__ import annotations
 
@@ -727,7 +727,7 @@ def viewer_logout() -> RedirectResponse:
 def health_live() -> dict[str, Any]:
     return {
         "status": "ok",
-        "service": "lifescience_watch",
+        "service": "gtm_advisor",
     }
 
 
@@ -736,7 +736,7 @@ def health_ready() -> dict[str, Any]:
     db_ok = _database_ready()
     return {
         "status": "ok" if db_ok else "degraded",
-        "service": "lifescience_watch",
+        "service": "gtm_advisor",
         "database": "ok" if db_ok else "error",
         "lock_held": _run_lock.locked(),
     }
@@ -750,7 +750,7 @@ def health() -> dict[str, Any]:
 @app.get("/status")
 def status() -> dict[str, Any]:
     return {
-        "service": "lifescience_watch",
+        "service": "gtm_advisor",
         "sqlite": _db_info(),
         "postgres": _postgres_info(),
         "config": {
@@ -773,7 +773,7 @@ def run_now() -> dict[str, Any]:
         _run_lock.release()
 
     return {
-        "service": "lifescience_watch",
+        "service": "gtm_advisor",
         "exit_code": exit_code,
         "sqlite": _db_info(),
         "postgres": _postgres_info(),
