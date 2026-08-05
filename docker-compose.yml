@@ -1,14 +1,14 @@
 services:
-  liscihub-postgres:
+  gtm_advisor-postgres:
     image: postgres:16
-    container_name: liscihub-postgres
+    container_name: gtm_advisor-postgres
     restart: unless-stopped
     env_file:
       - infra/.env
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     volumes:
-      - ./docker-data/liscihub-postgres:/var/lib/postgresql/data
+      - ./docker-data/gtm_advisor-postgres:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -17,27 +17,27 @@ services:
       retries: 5
       start_period: 15s
 
-  lifescience_watch:
+  gtm_advisor:
     build: .
-    container_name: lifescience_watch
-    image: lifescience_watch:latest
+    container_name: gtm_advisor
+    image: gtm_advisor:latest
     ports:
       - "${API_BIND_HOST:-127.0.0.1}:${API_BIND_PORT:-8011}:8011"
     restart: unless-stopped
     depends_on:
-      liscihub-postgres:
+      gtm_advisor-postgres:
         condition: service_healthy
       ollama:
         condition: service_started
     env_file:
       - infra/.env
     environment:
-      LSW_SOURCES: /app/data/sources.csv
-      LSW_LOAD_CONFIG: /app/data/load_config.csv
-      LSW_SCRAPING_CONFIG: /app/data/scraping_config.json
-      LSW_DB_PATH: /app/data/lifescience_watch.db
-      LSW_OUTPUT_DIR: /app/outputs
-      POSTGRES_HOST: liscihub-postgres
+      GTM_ADVISOR_SOURCES: /app/data/sources.csv
+      GTM_ADVISOR_LOAD_CONFIG: /app/data/load_config.csv
+      GTM_ADVISOR_SCRAPING_CONFIG: /app/data/scraping_config.json
+      GTM_ADVISOR_DB_PATH: /app/data/gtm_advisor.db
+      GTM_ADVISOR_OUTPUT_DIR: /app/outputs
+      POSTGRES_HOST: gtm_advisor-postgres
       POSTGRES_PORT: "5432"
       OLLAMA_BASE_URL: http://ollama:11434
     volumes:
@@ -58,33 +58,33 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: liscihub-ollama
+    container_name: gtm_advisor-ollama
     restart: unless-stopped
     ports:
       - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
     volumes:
-      - liscihub_ollama:/root/.ollama
+      - gtm_advisor_ollama:/root/.ollama
   caddy:
     image: caddy:2
-    container_name: lifescience-caddy
+    container_name: gtm_advisor-caddy
     restart: unless-stopped
     dns:
       - 1.1.1.1
       - 8.8.8.8
     depends_on:
-      lifescience_watch:
+      gtm_advisor:
         condition: service_healthy
     env_file:
       - infra/.env
     ports:
-      - "${LISCIHUB_BIND_IP:-0.0.0.0}:80:80"
-      - "${LISCIHUB_BIND_IP:-0.0.0.0}:443:443"
+      - "${GTM_ADVISOR_BIND_IP:-0.0.0.0}:80:80"
+      - "${GTM_ADVISOR_BIND_IP:-0.0.0.0}:443:443"
     volumes:
       - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
-      - liscihub_caddy_data:/data
-      - liscihub_caddy_config:/config
+      - gtm_advisor_caddy_data:/data
+      - gtm_advisor_caddy_config:/config
 
 volumes:
-  liscihub_caddy_data:
-  liscihub_caddy_config:
-  liscihub_ollama:
+  gtm_advisor_caddy_data:
+  gtm_advisor_caddy_config:
+  gtm_advisor_ollama:

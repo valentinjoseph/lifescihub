@@ -1,7 +1,7 @@
 """create article summary table
 
 Revision ID: 0003_create_article_summary
-Revises: 0002_create_lsw_core_tables
+Revises: 0002_create_gtm_advisor_core_tables
 Create Date: 2026-04-18 19:40:00.000000
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0003_create_article_summary"
-down_revision: Union[str, Sequence[str], None] = "0002_create_lsw_core_tables"
+down_revision: Union[str, Sequence[str], None] = "0002_create_gtm_advisor_core_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

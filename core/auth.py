@@ -59,7 +59,7 @@ def request_has_valid_viewer_auth(request: Request, expected_token: str | None) 
     if viewer_header == expected_token:
         return True
 
-    viewer_cookie = request.cookies.get("liscihub_viewer_token")
+    viewer_cookie = request.cookies.get("gtm_advisor_viewer_token")
     if viewer_cookie == expected_token:
         return True
 

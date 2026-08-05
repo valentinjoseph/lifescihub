@@ -25,7 +25,7 @@ from db.table_manager import PostgresTableManager, ensure_schema_and_table, get_
 from utils.data_quality import aggregate_metrics, validate_scraped_data
 
 
-LOGGER = logging.getLogger("lifescience_watch")
+LOGGER = logging.getLogger("gtm_advisor")
 FLOW_NAME = "LS_SOURCE_SCRAPING"
 CATALOG = "local"
 DEFAULT_INDUSTRY_SECTOR = "LIFESCIENCE"
@@ -336,7 +336,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--db-path",
-        default=str(PROJECT_ROOT / "data" / "lifescience_watch.db"),
+        default=str(PROJECT_ROOT / "data" / "gtm_advisor.db"),
         help="Legacy SQLite database path used only for one-time bootstrap into PostgreSQL",
     )
     parser.add_argument(

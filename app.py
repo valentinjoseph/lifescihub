@@ -97,7 +97,7 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "same-origin",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
-REQUEST_PORTAL_COOKIE = "liscihub_request_session"
+REQUEST_PORTAL_COOKIE = "gtm_advisor_request_session"
 jinja_env = Environment(
     loader=FileSystemLoader(str(PROJECT_ROOT / "templates")),
     autoescape=select_autoescape(["html", "xml"]),
@@ -131,11 +131,11 @@ def _default_paths() -> dict[str, str]:
     data_dir = PROJECT_ROOT / "data"
     outputs_dir = PROJECT_ROOT / "outputs"
     return {
-        "sources": os.getenv("LSW_SOURCES", str(data_dir / "sources.csv")),
-        "load_config": os.getenv("LSW_LOAD_CONFIG", str(data_dir / "load_config.csv")),
-        "scraping_config": os.getenv("LSW_SCRAPING_CONFIG", str(data_dir / "scraping_config.json")),
-        "db_path": os.getenv("LSW_DB_PATH", str(data_dir / "lifescience_watch.db")),
-        "output_dir": os.getenv("LSW_OUTPUT_DIR", str(outputs_dir)),
+        "sources": os.getenv("GTM_ADVISOR_SOURCES", str(data_dir / "sources.csv")),
+        "load_config": os.getenv("GTM_ADVISOR_LOAD_CONFIG", str(data_dir / "load_config.csv")),
+        "scraping_config": os.getenv("GTM_ADVISOR_SCRAPING_CONFIG", str(data_dir / "scraping_config.json")),
+        "db_path": os.getenv("GTM_ADVISOR_DB_PATH", str(data_dir / "gtm_advisor.db")),
+        "output_dir": os.getenv("GTM_ADVISOR_OUTPUT_DIR", str(outputs_dir)),
     }
 
 
@@ -228,7 +228,7 @@ def _effective_session(request: Request | None) -> dict[str, str] | None:
     session = _portal_session(request)
     if session:
         return session
-    if request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
+    if request.cookies.get("gtm_advisor_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
         return {"role": "viewer", "username": "Authenticated user"}
     return None
 
@@ -374,7 +374,7 @@ def root() -> RedirectResponse:
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
     session = _portal_session(request)
-    viewer_cookie_active = bool(request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN)
+    viewer_cookie_active = bool(request.cookies.get("gtm_advisor_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN)
     show_signed_in = bool(session or viewer_cookie_active)
     is_admin = bool(session and session["role"] == "admin")
     response = _render_template(
@@ -440,7 +440,7 @@ def viewer(request: Request):
         response = RedirectResponse(url="/dashboard", status_code=307)
         response.headers["Cache-Control"] = "no-store"
         return response
-    if request.cookies.get("liscihub_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
+    if request.cookies.get("gtm_advisor_viewer_token") == VIEWER_ACCESS_TOKEN and VIEWER_ACCESS_TOKEN:
         response = RedirectResponse(url="/dashboard", status_code=307)
         response.headers["Cache-Control"] = "no-store"
         return response
@@ -680,7 +680,7 @@ def viewer_login(
     response = RedirectResponse(url="/dashboard", status_code=303)
     if token_login_is_valid or role in {"viewer", "admin"}:
         response.set_cookie(
-            key="liscihub_viewer_token",
+            key="gtm_advisor_viewer_token",
             value=VIEWER_ACCESS_TOKEN,
             httponly=True,
             secure=_is_secure_request(request),
@@ -689,7 +689,7 @@ def viewer_login(
             path="/",
         )
     else:
-        response.delete_cookie(key="liscihub_viewer_token", path="/")
+        response.delete_cookie(key="gtm_advisor_viewer_token", path="/")
     if role:
         _set_portal_session_cookie(response, request, role, normalized_username)
         record_activity(
@@ -701,7 +701,7 @@ def viewer_login(
             client_ip=_get_client_ip(request),
         )
     response.set_cookie(
-        key="liscihub_viewer_mode",
+        key="gtm_advisor_viewer_mode",
         value="1",
         httponly=False,
         secure=_is_secure_request(request),
@@ -716,8 +716,8 @@ def viewer_login(
 @app.get("/viewer/logout", include_in_schema=False)
 def viewer_logout() -> RedirectResponse:
     response = RedirectResponse(url="/dashboard", status_code=307)
-    response.delete_cookie(key="liscihub_viewer_token")
-    response.delete_cookie(key="liscihub_viewer_mode")
+    response.delete_cookie(key="gtm_advisor_viewer_token")
+    response.delete_cookie(key="gtm_advisor_viewer_mode")
     response.delete_cookie(key=REQUEST_PORTAL_COOKIE, path="/")
     response.headers["Cache-Control"] = "no-store"
     return response

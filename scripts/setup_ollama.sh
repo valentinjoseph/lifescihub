@@ -26,5 +26,5 @@ for _ in {1..60}; do
 done
 
 curl -fsS "http://127.0.0.1:${OLLAMA_PORT:-11434}/api/tags" >/dev/null
-docker exec liscihub-ollama ollama pull "${OLLAMA_MODEL_NAME}"
-docker exec liscihub-ollama ollama list
+docker exec gtm_advisor-ollama ollama pull "${OLLAMA_MODEL_NAME}"
+docker exec gtm_advisor-ollama ollama list

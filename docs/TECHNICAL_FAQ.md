@@ -113,7 +113,7 @@ POSTGRES_PORT=
 
 ### What is the purpose of the old SQLite path?
 
-`LSW_DB_PATH` points to a legacy SQLite path used for one-time bootstrap compatibility. Runtime reads/writes use PostgreSQL.
+`GTM_ADVISOR_DB_PATH` points to a legacy SQLite path used for one-time bootstrap compatibility. Runtime reads/writes use PostgreSQL.
 
 ### What are the main PostgreSQL schemas?
 
@@ -428,7 +428,7 @@ Admin endpoints accept:
 ```text
 X-Api-Key: <API_AUTH_TOKEN>
 Authorization: Bearer <API_AUTH_TOKEN>
-X-Run-Token: <LSW_RUN_TOKEN>
+X-Run-Token: <GTM_ADVISOR_RUN_TOKEN>
 ```
 
 `X-Run-Token` is kept for legacy compatibility.
@@ -451,8 +451,8 @@ The auth helpers support SHA-256 password hashes using the `sha256:<hash>` forma
 Allowed hosts are built from:
 
 ```dotenv
-LISCIHUB_PUBLIC_HOST=
-LISCIHUB_ALLOWED_HOSTS=
+GTM_ADVISOR_PUBLIC_HOST=
+GTM_ADVISOR_ALLOWED_HOSTS=
 ```
 
 plus localhost defaults.
@@ -509,8 +509,8 @@ It tracks login, filtering, and AI chat activity for the activity-monitoring pag
 
 `docker-compose.yml` defines:
 
-- `liscihub-postgres`: PostgreSQL 16
-- `lifescience_watch`: FastAPI app and Python runtime
+- `gtm_advisor-postgres`: PostgreSQL 16
+- `gtm_advisor`: FastAPI app and Python runtime
 
 ### What ports are used by default?
 
@@ -541,7 +541,7 @@ make docker-rebuild
 make psql
 ```
 
-### Why does the app container use `POSTGRES_HOST=liscihub-postgres`?
+### Why does the app container use `POSTGRES_HOST=gtm_advisor-postgres`?
 
 Inside Docker Compose, services resolve each other by service/container DNS name. The host machine uses `localhost`, but the app container uses the Compose service name.
 

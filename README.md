@@ -56,7 +56,7 @@ DEA consumption marts
 FastAPI dashboard / Excel export
 ```
 
-For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](docs/architecture/liscihub_technical_architecture.md).
+For a more detailed engineering schema, see [docs/architecture/gtm_advisor_technical_architecture.md](docs/architecture/gtm_advisor_technical_architecture.md).
 For local AI setup and verification, see [docs/OLLAMA.md](docs/OLLAMA.md).
 For company handoff guidance, see [docs/HANDOFF.md](docs/HANDOFF.md).
 
@@ -85,7 +85,7 @@ The website is not a separate frontend application. It is served directly by the
 - dashboard data comes from PostgreSQL reporting views
 - the news feed can be filtered independently by industry sector, period, company, and topic
 - the chat experience queries all available dashboard news and does not inherit the news-feed period, company, or topic filters
-- a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
+- a public domain can be published through a reverse proxy by setting `GTM_ADVISOR_PUBLIC_HOST`
 
 This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
 
@@ -103,7 +103,7 @@ This makes the product easy to operate: one Python application powers the API, t
 ## Repo Map
 
 ```text
-lifescience_watch/
+gtm_advisor/
 ├── app.py                      FastAPI wrapper for local operations
 ├── Makefile                    Common local commands
 ├── core/                       Scraper, monitoring, runtime config
@@ -122,8 +122,8 @@ lifescience_watch/
 ## Quick Start
 
 ```bash
-git clone <repo-url> lifescience_watch
-cd lifescience_watch
+git clone <repo-url> gtm_advisor
+cd gtm_advisor
 make setup
 chmod +x scripts/setup_ollama.sh
 ./scripts/setup_ollama.sh
@@ -220,7 +220,7 @@ The daily scheduled job runs:
 Portable cron example:
 
 ```cron
-0 8 * * * cd /path/to/lifescience_watch && /bin/bash scripts/run_daily_pipeline.sh >> outputs/run_daily_pipeline.log 2>&1
+0 8 * * * cd /path/to/gtm_advisor && /bin/bash scripts/run_daily_pipeline.sh >> outputs/run_daily_pipeline.log 2>&1
 ```
 
 The script resolves the repository root from its own location, so it does not require the project to live under a specific username or host path.
@@ -292,7 +292,7 @@ Admin auth headers:
 
 - `X-Api-Key: ${API_AUTH_TOKEN}`
 - or `Authorization: Bearer ${API_AUTH_TOKEN}`
-- legacy compatibility: `X-Run-Token: ${LSW_RUN_TOKEN}`
+- legacy compatibility: `X-Run-Token: ${GTM_ADVISOR_RUN_TOKEN}`
 
 Viewer auth options:
 
@@ -371,7 +371,7 @@ This repo is prepared for local development, homelab hosting, or small-server de
 - viewer cookie flow for shared read-only access
 - public health endpoints for container and reverse-proxy checks
 - rate limiting for dashboard/news/chat traffic
-- trusted-host enforcement via `LISCIHUB_PUBLIC_HOST`
+- trusted-host enforcement via `GTM_ADVISOR_PUBLIC_HOST`
 - hardened container settings:
   - localhost-only bind by default
   - `no-new-privileges`
@@ -391,7 +391,7 @@ Use the concrete value from `infra/.env` in your proxy config, for example `http
 Then set the public hostname in `infra/.env`:
 
 ```dotenv
-LISCIHUB_PUBLIC_HOST=your-domain.example
+GTM_ADVISOR_PUBLIC_HOST=your-domain.example
 ```
 
 ### Access From A Corporate PC
@@ -400,7 +400,7 @@ By default the Docker stack binds the website to `127.0.0.1`, so it is only reac
 
 Recommended options:
 
-- use the public HTTPS domain behind your reverse proxy, then set `LISCIHUB_PUBLIC_HOST=your-domain.example`
+- use the public HTTPS domain behind your reverse proxy, then set `GTM_ADVISOR_PUBLIC_HOST=your-domain.example`
 - or create an SSH tunnel from the corporate PC to the host and open the forwarded local URL
 
 For a trusted LAN-only test, you can expose the app on the host network interface. In `infra/.env`, set:
@@ -408,7 +408,7 @@ For a trusted LAN-only test, you can expose the app on the host network interfac
 ```dotenv
 API_BIND_HOST=0.0.0.0
 API_BIND_PORT=8011
-LISCIHUB_ALLOWED_HOSTS=192.168.1.50,server-name.local
+GTM_ADVISOR_ALLOWED_HOSTS=192.168.1.50,server-name.local
 ```
 
 Replace `192.168.1.50` and `server-name.local` with the IP address or DNS name you will type into the corporate PC browser. Then restart:
@@ -429,17 +429,17 @@ If the corporate browser still cannot connect, check that the host firewall allo
 
 Connection defaults:
 
-- database: `liscihub`
+- database: `gtm_advisor`
 - schema: `tech`
-- postgres container: `liscihub-postgres`
+- postgres container: `gtm_advisor-postgres`
 - host port: value of `POSTGRES_PORT` in `infra/.env`; default `5434`
 
 DBeaver on the same machine:
 
 - host: `127.0.0.1`
 - port: value of `POSTGRES_PORT`; default `5434`
-- database: `liscihub`
-- username: `liscihub`
+- database: `gtm_advisor`
+- username: `gtm_advisor`
 - password: value of `POSTGRES_PASSWORD` in `infra/.env`
 
 DBeaver from another workstation:
@@ -523,5 +523,5 @@ This makes the current score a practical business-importance ranking rather than
 ## Notes
 
 - Some sites still use anti-bot or challenge pages, so extraction quality varies by source.
-- `data/*.csv` and `data/lifescience_watch.db` remain as bootstrap/local compatibility assets.
+- `data/*.csv` and `data/gtm_advisor.db` remain as bootstrap/local compatibility assets.
 - The repo is designed to run from any checkout path. Keep machine-specific values in `infra/.env`, cron entries, and reverse-proxy config rather than committing them to source files.

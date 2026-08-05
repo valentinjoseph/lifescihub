@@ -1,6 +1,6 @@
-"""create lifescience watch core tables
+"""create GTM Advisor core tables
 
-Revision ID: 0002_create_lsw_core_tables
+Revision ID: 0002_create_gtm_advisor_core_tables
 Revises: 0001_create_tech_schema
 Create Date: 2026-04-18 10:00:00.000000
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0002_create_lsw_core_tables"
+revision: str = "0002_create_gtm_advisor_core_tables"
 down_revision: Union[str, Sequence[str], None] = "0001_create_tech_schema"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

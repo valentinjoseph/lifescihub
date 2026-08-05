@@ -23,7 +23,7 @@ help:
 	@echo "  docker-restart   Restart the app container"
 	@echo "  health           Call the authenticated health endpoint"
 	@echo "  status           Call the authenticated status endpoint"
-	@echo "  psql             Open a psql session in liscihub-postgres"
+	@echo "  psql             Open a psql session in gtm_advisor-postgres"
 
 setup:
 	python3 -m venv .venv
@@ -49,7 +49,7 @@ purge-content:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/purge_summarized_article_content.py
 
 db-views:
-	@bash -lc 'source $(ENV_FILE) && docker exec -i liscihub-postgres psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1' < config/scripts/dwh_views.sql
+	@bash -lc 'source $(ENV_FILE) && docker exec -i gtm_advisor-postgres psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1' < config/scripts/dwh_views.sql
 
 export:
 	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/export_dwh_views.py
@@ -64,10 +64,10 @@ docker-up:
 	docker compose --env-file $(ENV_FILE) up -d --build
 
 docker-rebuild:
-	docker compose --env-file $(ENV_FILE) up -d --build lifescience_watch
+	docker compose --env-file $(ENV_FILE) up -d --build gtm_advisor
 
 docker-restart:
-	docker compose --env-file $(ENV_FILE) restart lifescience_watch
+	docker compose --env-file $(ENV_FILE) restart gtm_advisor
 
 health:
 	@bash -lc 'source $(ENV_FILE) && curl -s "http://127.0.0.1:$${API_BIND_PORT:-8011}/health/ready"'
@@ -76,4 +76,4 @@ status:
 	@bash -lc 'source $(ENV_FILE) && curl -s "http://127.0.0.1:$${API_BIND_PORT:-8011}/status" -H "X-Api-Key: $$API_AUTH_TOKEN"'
 
 psql:
-	docker exec -it liscihub-postgres psql -U liscihub -d liscihub
+	docker exec -it gtm_advisor-postgres psql -U gtm_advisor -d gtm_advisor

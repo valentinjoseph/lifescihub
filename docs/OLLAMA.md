@@ -27,7 +27,7 @@ From the project root:
 ```bash
 chmod +x scripts/setup_ollama.sh
 ./scripts/setup_ollama.sh
-docker compose up -d --build lifescience_watch
+docker compose up -d --build gtm_advisor
 ```
 
 The setup script starts the `ollama/ollama` Docker service, waits for the local API, pulls `OLLAMA_MODEL`, and lists installed models.
@@ -36,7 +36,7 @@ The setup script starts the `ollama/ollama` Docker service, waits for the local 
 
 ```bash
 curl -fsS http://127.0.0.1:11434/api/tags
-docker exec lifescience_watch python scripts/generate_article_summaries.py --limit 1
+docker exec gtm_advisor python scripts/generate_article_summaries.py --limit 1
 ```
 
 The summarizer purges staged `article_content` automatically after summaries are written. Use `--skip-purge` only for debugging.
