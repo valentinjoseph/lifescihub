@@ -21,10 +21,20 @@ def normalize_identifier(name: str) -> str:
     return value[:128]
 
 
-def get_target_schema_and_table(company_name: str) -> Tuple[str, str]:
-    """Map a company name to its logical schema and table names."""
-    base = normalize_identifier(company_name)
-    return f"stg_ls_{base}", f"stg_{base}_ingest"
+DEFAULT_INDUSTRY_SECTOR = "LIFESCIENCE"
+
+
+def normalize_industry_sector(industry_sector: str | None) -> str:
+    """Normalize a configured industry sector to its canonical storage label."""
+    value = (industry_sector or DEFAULT_INDUSTRY_SECTOR).strip().upper()
+    return value or DEFAULT_INDUSTRY_SECTOR
+
+
+def get_target_schema_and_table(company_name: str, industry_sector: str | None = None) -> Tuple[str, str]:
+    """Map a company and industry sector to staging schema and table names."""
+    sector = normalize_identifier(normalize_industry_sector(industry_sector))
+    company = normalize_identifier(company_name)
+    return f"stg_{sector}", f"stg_{company}"
 
 
 class PostgresTableManager:

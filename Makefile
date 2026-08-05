@@ -59,7 +59,7 @@ sync:
 	set -a && source $(ENV_FILE) && set +a && ./scripts/upload_export_to_gdrive.sh
 
 refresh:
-	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/purge_summarized_article_content.py && $(VENV_PYTHON) scripts/export_dwh_views.py && ./scripts/upload_export_to_gdrive.sh
+	set -a && source $(ENV_FILE) && set +a && $(VENV_PYTHON) scripts/generate_article_summaries.py && $(VENV_PYTHON) scripts/export_dwh_views.py && ./scripts/upload_export_to_gdrive.sh
 
 daily:
 	./scripts/run_daily_pipeline.sh

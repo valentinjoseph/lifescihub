@@ -21,6 +21,7 @@ def upgrade() -> None:
     op.create_table(
         "ls_load_sources",
         sa.Column("company_name", sa.Text(), primary_key=True, nullable=False),
+        sa.Column("industry_sector", sa.Text(), nullable=False, server_default="LIFESCIENCE"),
         sa.Column("source_1", sa.Text(), nullable=True),
         sa.Column("source_2", sa.Text(), nullable=True),
         sa.Column("source_3", sa.Text(), nullable=True),

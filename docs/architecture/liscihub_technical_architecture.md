@@ -46,7 +46,7 @@ flowchart LR
 
     subgraph DB["PostgreSQL logical layers"]
         Tech["tech schema<br/>config, monitoring, summaries"]
-        Staging["stg_ls_* schemas<br/>company staging tables"]
+        Staging["stg_<industry_sector> schemas<br/>company staging tables"]
         DWH["dwh schema<br/>reporting/export views"]
         DEA["dea schema<br/>decision-ready consumption marts"]
     end
@@ -125,7 +125,7 @@ sequenceDiagram
     Scrape->>PG: Read tech.ls_load_sources
     Scrape->>PG: Read tech.ls_load_config FULL/DELTA mode
     Scrape->>Scrape: Fetch listing URLs and article URLs
-    Scrape->>PG: Merge articles into stg_ls_* tables
+    Scrape->>PG: Merge articles into sector staging schemas
     Scrape->>PG: Write run metrics to tech.ls_load_monitoring
     Runner->>AI: python scripts/generate_article_summaries.py
     AI->>PG: Read staged articles needing summaries
@@ -152,11 +152,11 @@ flowchart TB
         Summary["ls_article_summary<br/>AI summaries + structured fields"]
     end
 
-    subgraph Staging["company staging schemas"]
-        Stg1["stg_ls_sanofi.stg_sanofi_ingest"]
-        Stg2["stg_ls_servier.stg_servier_ingest"]
-        Stg3["stg_ls_viatris.stg_viatris_ingest"]
-        StgN["stg_ls_*<br/>one schema/table family per company"]
+    subgraph Staging["sector staging schemas"]
+        Stg1["stg_lifescience.stg_sanofi"]
+        Stg2["stg_lifescience.stg_servier"]
+        Stg3["stg_energy.stg_example_energy"]
+        StgN["stg_<industry_sector><br/>one schema per sector, one table per company"]
     end
 
     subgraph DWH["dwh schema"]

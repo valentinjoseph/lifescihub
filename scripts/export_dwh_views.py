@@ -179,6 +179,7 @@ def style_sheet(writer: pd.ExcelWriter, sheet_name: str, frame: pd.DataFrame, co
     wrap_columns = {"title", "article_summary", "business_impact", "url"}
     preferred_widths = {
         "company_name": 22,
+        "industry_sector": 18,
         "published_date": 20,
         "priority_score": 14,
         "title": 42,

@@ -21,8 +21,8 @@ class PurgeArticleContentTests(unittest.TestCase):
             yield connection
 
         tables = [
-            {"schema": "stg_ls_sanofi", "table": "stg_sanofi_ingest"},
-            {"schema": "stg_ls_viatris", "table": "stg_viatris_ingest"},
+            {"schema": "stg_lifescience", "table": "stg_sanofi"},
+            {"schema": "stg_lifescience", "table": "stg_viatris"},
         ]
 
         with patch.object(purge_summarized_article_content.engine, "begin", fake_begin), patch.object(

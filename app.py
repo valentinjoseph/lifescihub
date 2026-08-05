@@ -66,7 +66,14 @@ from core.config import (
     VIEWER_USERNAME,
 )
 from core.dashboard import chat_about_news, fetch_dashboard_payload
-from core.request_portal import create_company_request, ensure_request_tables, list_company_requests, review_company_request
+from core.request_portal import (
+    INDUSTRY_SECTORS,
+    create_company_request,
+    ensure_request_tables,
+    list_company_requests,
+    normalize_industry_sector,
+    review_company_request,
+)
 from db.session import engine
 from orchestration.LS_MAIN_REFACTORED import PROJECT_ROOT, run_pipeline
 
@@ -499,6 +506,13 @@ def _validate_request_input(company_name: str, source_url: str) -> tuple[str, st
     return normalized_company_name, normalized_source_url
 
 
+def _validate_industry_sector(value: str) -> str:
+    try:
+        return normalize_industry_sector(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def _viewer_login_is_valid(username: str, password: str | None) -> bool:
     if viewer_account_credentials_are_valid(username, password, VIEWER_ACCOUNTS):
         return True
@@ -577,6 +591,7 @@ def request_portal(request: Request):
         current_username=session["username"],
         is_admin=session["role"] == "admin",
         requests=requests,
+        industry_sectors=INDUSTRY_SECTORS,
         message=_portal_message(request),
     )
     response.headers["Cache-Control"] = "no-store"
@@ -587,21 +602,41 @@ def request_portal(request: Request):
 def request_portal_submit(
     request: Request,
     company_name: str = Form(...),
+    industry_sector: str = Form(...),
     source_url: str = Form(...),
 ) -> RedirectResponse:
     session = _require_portal_session(request, {"guest", "viewer", "admin"})
     normalized_company_name, normalized_source_url = _validate_request_input(company_name, source_url)
-    create_company_request(normalized_company_name, normalized_source_url, session["username"], session["role"])
+    normalized_industry_sector = _validate_industry_sector(industry_sector)
+    create_company_request(
+        normalized_company_name,
+        normalized_industry_sector,
+        normalized_source_url,
+        session["username"],
+        session["role"],
+    )
     response = RedirectResponse(url="/requests?message=Request+submitted", status_code=303)
     response.headers["Cache-Control"] = "no-store"
     return response
 
 
 @app.post("/requests/{request_id}/approve", include_in_schema=False, response_model=None)
-def request_portal_approve(request: Request, request_id: str, review_note: str | None = Form(default=None)) -> RedirectResponse:
+def request_portal_approve(
+    request: Request,
+    request_id: str,
+    industry_sector: str = Form(...),
+    review_note: str | None = Form(default=None),
+) -> RedirectResponse:
     session = _require_portal_session(request, {"admin"})
     try:
-        review_company_request(request_id, session["username"], approved=True, review_note=review_note)
+        normalized_industry_sector = _validate_industry_sector(industry_sector)
+        review_company_request(
+            request_id,
+            session["username"],
+            approved=True,
+            review_note=review_note,
+            industry_sector=normalized_industry_sector,
+        )
         message = "Request+approved"
     except ValueError as exc:
         message = escape(str(exc)).replace(" ", "+")
@@ -748,6 +783,7 @@ def run_now() -> dict[str, Any]:
 @app.get("/api/dashboard/news")
 def dashboard_news(
     request: Request = None,
+    industry_sector: str = "ALL",
     company: str = "ALL",
     period: str = "week",
     topic: str = "ALL",
@@ -759,11 +795,11 @@ def dashboard_news(
             session["role"],
             ACTIVITY_NEWS_FILTER,
             "/api/dashboard/news",
-            activity_meta={"company": company, "period": period, "topic": topic},
+            activity_meta={"industry_sector": industry_sector, "company": company, "period": period, "topic": topic},
             request_id=_get_request_id(request.headers) if request is not None else None,
             client_ip=_get_client_ip(request) if request is not None else None,
         )
-    return fetch_dashboard_payload(company_name=company, period=period, topic=topic)
+    return fetch_dashboard_payload(industry_sector=industry_sector, company_name=company, period=period, topic=topic)
 
 
 @app.post("/api/dashboard/chat")

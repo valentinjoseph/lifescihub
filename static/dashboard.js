@@ -1,3 +1,4 @@
+const industrySectorSelect = document.getElementById("industrySectorSelect");
 const companySelect = document.getElementById("companySelect");
 const periodSelect = document.getElementById("periodSelect");
 const topicSelect = document.getElementById("topicSelect");
@@ -73,6 +74,7 @@ function populateSelect(select, values, selectedValue) {
 }
 
 function initializeFilters() {
+  populateSelect(industrySectorSelect, ["ALL"], "ALL");
   populateSelect(companySelect, ["ALL"], "ALL");
   populateSelect(periodSelect, defaultPeriods, "week");
   populateSelect(topicSelect, ["ALL"], "ALL");
@@ -163,7 +165,7 @@ function renderRows(rows) {
       <div class="news-row-head">
         <div>
           <h3>${escapeHtml(row.title || "Untitled article")}</h3>
-          <p class="meta-line">${escapeHtml(row.company_name)} | ${escapeHtml(row.published_date || "No date")} | Priority ${escapeHtml(row.priority_score ?? "")}</p>
+          <p class="meta-line">${escapeHtml(row.industry_sector || "No sector")} | ${escapeHtml(row.company_name)} | ${escapeHtml(row.published_date || "No date")} | Priority ${escapeHtml(row.priority_score ?? "")}</p>
         </div>
       </div>
       <p>${escapeHtml(row.article_summary || "")}</p>
@@ -252,10 +254,11 @@ function renderChatSources(sources) {
 }
 
 async function loadDashboard() {
+  const industrySector = industrySectorSelect.value || "ALL";
   const company = companySelect.value || "ALL";
   const period = periodSelect.value || "week";
   const topic = topicSelect.value || "ALL";
-  const response = await fetch(`/api/dashboard/news?company=${encodeURIComponent(company)}&period=${encodeURIComponent(period)}&topic=${encodeURIComponent(topic)}`, {
+  const response = await fetch(`/api/dashboard/news?industry_sector=${encodeURIComponent(industrySector)}&company=${encodeURIComponent(company)}&period=${encodeURIComponent(period)}&topic=${encodeURIComponent(topic)}`, {
     headers: authHeaders(),
   });
   if (!response.ok) {
@@ -275,6 +278,7 @@ async function loadDashboard() {
     throw new Error(payload.detail || "Unable to load dashboard data");
   }
   const payload = await response.json();
+  populateSelect(industrySectorSelect, payload.filters.industry_sectors, payload.filters.selected_industry_sector);
   populateSelect(companySelect, payload.filters.companies, payload.filters.selected_company);
   populateSelect(periodSelect, payload.filters.periods, payload.filters.selected_period);
   populateSelect(topicSelect, payload.filters.topics, payload.filters.selected_topic);
@@ -328,6 +332,12 @@ runTokenInput.addEventListener("change", () => {
 });
 refreshButton.addEventListener("click", loadDashboard);
 periodSelect.addEventListener("change", () => {
+  industrySectorSelect.value = "ALL";
+  companySelect.value = "ALL";
+  topicSelect.value = "ALL";
+  loadDashboard();
+});
+industrySectorSelect.addEventListener("change", () => {
   companySelect.value = "ALL";
   topicSelect.value = "ALL";
   loadDashboard();

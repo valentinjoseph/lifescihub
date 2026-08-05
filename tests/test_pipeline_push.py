@@ -118,7 +118,7 @@ class PipelinePushTests(unittest.TestCase):
                 return_value=[{"company_name": "TESTCO", "url": "https://example.com/news"}],
             ), patch(
                 "orchestration.LS_MAIN_REFACTORED.load_company_config",
-                return_value={"TESTCO": "FULL"},
+                return_value={"TESTCO": {"load_type": "FULL", "industry_sector": "LIFESCIENCE"}},
             ), patch(
                 "orchestration.LS_MAIN_REFACTORED.PostgresTableManager"
             ), patch(
@@ -141,8 +141,8 @@ class PipelinePushTests(unittest.TestCase):
         self.assertEqual(len(merged_frames), 1)
 
         schema, table, merged_df = merged_frames[0]
-        self.assertEqual(schema, "stg_ls_testco")
-        self.assertEqual(table, "stg_testco_ingest")
+        self.assertEqual(schema, "stg_lifescience")
+        self.assertEqual(table, "stg_testco")
         self.assertEqual(len(merged_df), 1)
         self.assertEqual(
             list(merged_df.columns),
@@ -222,7 +222,7 @@ class PipelinePushTests(unittest.TestCase):
                 return_value=[{"company_name": "TESTCO", "url": "https://example.com/news"}],
             ), patch(
                 "orchestration.LS_MAIN_REFACTORED.load_company_config",
-                return_value={"TESTCO": "DELTA"},
+                return_value={"TESTCO": {"load_type": "DELTA", "industry_sector": "LIFESCIENCE"}},
             ), patch(
                 "orchestration.LS_MAIN_REFACTORED.PostgresTableManager"
             ), patch(

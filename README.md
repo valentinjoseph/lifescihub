@@ -174,7 +174,7 @@ What they do:
 
 - `make scrape`: run the scraper pipeline
 - `make test`: run scraper/pipeline push checks
-- `make summarize`: refresh AI and structured summaries
+- `make summarize`: refresh structured summaries and purge summarized full article bodies
 - `make db-views`: create or refresh DWH and DEA SQL views in PostgreSQL
 - `make export`: rebuild the Excel workbook
 - `make sync`: upload the latest workbook to Google Drive
@@ -183,10 +183,11 @@ What they do:
 
 ## Load Modes
 
-Company load modes are configured in `tech.ls_load_config`:
+Company load modes and sectors are configured in `tech.ls_load_config`:
 
 - `FULL`: scrape and consider all validated articles from the configured source pages.
 - `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.ls_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
+- `INDUSTRY_SECTOR`: routes each company into a sector staging schema such as `stg_lifescience`, `stg_banking`, or `stg_energy`.
 
 In `DELTA` mode, known older articles are skipped. Articles without a usable `published_date` are still considered because some source sites do not expose dates reliably. The monitoring report's `attempted`, `fetched`, and `parsed` counts are post-DELTA eligible article counts, so they reflect articles considered for loading rather than every listing/article HTTP request made internally.
 
@@ -195,10 +196,9 @@ In `DELTA` mode, known older articles are skipped. Articles without a usable `pu
 The daily scheduled job runs:
 
 1. scraping
-2. summary refresh
-3. full article-content purge for summarized articles
-4. workbook export
-5. Google Drive upload
+2. summary refresh with automatic full article-content purge for summarized articles
+3. workbook export
+4. Google Drive upload
 
 Portable cron example:
 
