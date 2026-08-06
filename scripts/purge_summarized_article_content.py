@@ -28,7 +28,7 @@ def purge_summarized_article_content() -> int:
                     WHERE article_content IS NOT NULL
                       AND EXISTS (
                           SELECT 1
-                          FROM tech.ls_article_summary AS summary
+                          FROM tech.tech_article_summary AS summary
                           WHERE summary.article_id = staging.id
                             AND COALESCE(NULLIF(summary.article_summary, ''), '') <> ''
                       )

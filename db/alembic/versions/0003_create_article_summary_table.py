@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "ls_article_summary",
+        "tech_article_summary",
         sa.Column("article_id", sa.Text(), primary_key=True, nullable=False),
         sa.Column("company_name", sa.Text(), nullable=False),
         sa.Column("url", sa.Text(), nullable=False),
@@ -35,4 +35,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("ls_article_summary", schema="tech")
+    op.drop_table("tech_article_summary", schema="tech")

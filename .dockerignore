@@ -4,6 +4,7 @@ __pycache__/
 infra/.env
 outputs/
 exports/
+backups/
 data/*.db
 docker-data/
 .git/

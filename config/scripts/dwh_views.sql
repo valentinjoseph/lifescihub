@@ -97,9 +97,9 @@ SELECT
     src.published_date,
     src.s_created_ts
 FROM src
-LEFT JOIN tech.ls_article_summary AS summary
+LEFT JOIN tech.tech_article_summary AS summary
     ON summary.article_id = src.id
-LEFT JOIN tech.ls_title_exclusion AS exclusion
+LEFT JOIN tech.tech_title_exclusion AS exclusion
     ON exclusion.id = src.id
 WHERE exclusion.id IS NULL;
 

@@ -96,7 +96,7 @@ def fetch_articles_for_summarization() -> pd.DataFrame:
     with engine.begin() as connection:
         excluded_ids = {
             row["id"]
-            for row in connection.execute(text("SELECT id FROM tech.ls_title_exclusion WHERE id IS NOT NULL")).mappings()
+            for row in connection.execute(text("SELECT id FROM tech.tech_title_exclusion WHERE id IS NOT NULL")).mappings()
         }
 
     if excluded_ids:

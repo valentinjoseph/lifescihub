@@ -20,7 +20,7 @@ def ensure_core_tables() -> None:
                 """
                 CREATE SCHEMA IF NOT EXISTS tech;
 
-                CREATE TABLE IF NOT EXISTS tech.ls_load_sources (
+                CREATE TABLE IF NOT EXISTS tech.tech_load_sources (
                     company_name TEXT PRIMARY KEY,
                     industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE',
                     source_1 TEXT,
@@ -32,7 +32,7 @@ def ensure_core_tables() -> None:
                     s_modified_ts TIMESTAMPTZ NOT NULL DEFAULT now()
                 );
 
-                CREATE TABLE IF NOT EXISTS tech.ls_load_config (
+                CREATE TABLE IF NOT EXISTS tech.tech_load_config (
                     flow_name TEXT NOT NULL,
                     company_name TEXT NOT NULL,
                     load_type TEXT,
@@ -41,10 +41,10 @@ def ensure_core_tables() -> None:
                     selectors TEXT[],
                     s_created_ts TIMESTAMPTZ NOT NULL DEFAULT now(),
                     s_modified_ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-                    CONSTRAINT ls_load_config_pk PRIMARY KEY (flow_name, company_name)
+                    CONSTRAINT tech_load_config_pk PRIMARY KEY (flow_name, company_name)
                 );
 
-                CREATE TABLE IF NOT EXISTS tech.ls_scraping_config (
+                CREATE TABLE IF NOT EXISTS tech.tech_scraping_config (
                     param_name TEXT PRIMARY KEY,
                     param_value TEXT NOT NULL,
                     description TEXT,
@@ -52,7 +52,7 @@ def ensure_core_tables() -> None:
                     s_modified_ts TIMESTAMPTZ NOT NULL DEFAULT now()
                 );
 
-                CREATE TABLE IF NOT EXISTS tech.ls_load_monitoring (
+                CREATE TABLE IF NOT EXISTS tech.tech_load_monitoring (
                     run_id TEXT NOT NULL,
                     run_name TEXT NOT NULL,
                     company_name TEXT NOT NULL,
@@ -74,24 +74,24 @@ def ensure_core_tables() -> None:
             )
         )
         connection.execute(
-            text("ALTER TABLE tech.ls_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+            text("ALTER TABLE tech.tech_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
         )
         connection.execute(
             text(
                 """
-                UPDATE tech.ls_load_sources
+                UPDATE tech.tech_load_sources
                 SET industry_sector = 'LIFESCIENCE'
                 WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
                 """
             )
         )
         connection.execute(
-            text("ALTER TABLE tech.ls_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+            text("ALTER TABLE tech.tech_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
         )
         connection.execute(
             text(
                 """
-                UPDATE tech.ls_load_config
+                UPDATE tech.tech_load_config
                 SET industry_sector = 'LIFESCIENCE'
                 WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
                 """
@@ -106,7 +106,7 @@ def _table_has_rows(table_name: str) -> bool:
 
 
 def seed_sources_from_csv(path: Path) -> None:
-    if not path.exists() or _table_has_rows("tech.ls_load_sources"):
+    if not path.exists() or _table_has_rows("tech.tech_load_sources"):
         return
 
     df = pd.read_csv(path).fillna("")
@@ -130,7 +130,7 @@ def seed_sources_from_csv(path: Path) -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_load_sources (
+                INSERT INTO tech.tech_load_sources (
                     company_name, industry_sector, source_1, source_2, source_3, source_4, source_5
                 ) VALUES (
                     :company_name, :industry_sector, :source_1, :source_2, :source_3, :source_4, :source_5
@@ -150,7 +150,7 @@ def seed_sources_from_csv(path: Path) -> None:
 
 
 def seed_load_config_from_csv(path: Path) -> None:
-    if not path.exists() or _table_has_rows("tech.ls_load_config"):
+    if not path.exists() or _table_has_rows("tech.tech_load_config"):
         return
 
     df = pd.read_csv(path).fillna("")
@@ -172,7 +172,7 @@ def seed_load_config_from_csv(path: Path) -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_load_config (
+                INSERT INTO tech.tech_load_config (
                     flow_name, company_name, load_type, active_flag, industry_sector
                 ) VALUES (
                     :flow_name, :company_name, :load_type, :active_flag, :industry_sector
@@ -189,7 +189,7 @@ def seed_load_config_from_csv(path: Path) -> None:
 
 
 def seed_scraping_config_from_json(path: Path) -> None:
-    if not path.exists() or _table_has_rows("tech.ls_scraping_config"):
+    if not path.exists() or _table_has_rows("tech.tech_scraping_config"):
         return
 
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -215,7 +215,7 @@ def seed_scraping_config_from_json(path: Path) -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_scraping_config (param_name, param_value, description)
+                INSERT INTO tech.tech_scraping_config (param_name, param_value, description)
                 VALUES (:param_name, :param_value, :description)
                 ON CONFLICT (param_name) DO UPDATE SET
                     param_value = EXCLUDED.param_value,
@@ -241,7 +241,7 @@ def import_legacy_sqlite(sqlite_path: Path) -> None:
         for row in table_rows:
             table_name = row["name"]
             if table_name == "load_monitoring":
-                if _table_has_rows("tech.ls_load_monitoring"):
+                if _table_has_rows("tech.tech_load_monitoring"):
                     continue
                 monitoring_rows = [
                     dict(item)
@@ -252,7 +252,7 @@ def import_legacy_sqlite(sqlite_path: Path) -> None:
                         pg_connection.execute(
                             text(
                                 """
-                                INSERT INTO tech.ls_load_monitoring (
+                                INSERT INTO tech.tech_load_monitoring (
                                     run_id, run_name, company_name, target_schema, target_table, load_type,
                                     run_status, run_message, records_inserted, urls_attempted, urls_fetched,
                                     parse_success_count, avg_response_time_ms, error_count, run_start_ts, run_end_ts

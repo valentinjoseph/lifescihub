@@ -1,5 +1,5 @@
--- PostgreSQL DDL for tech.ls_load_monitoring
-CREATE TABLE tech.ls_load_monitoring (
+-- PostgreSQL DDL for tech.tech_load_monitoring
+CREATE TABLE tech.tech_load_monitoring (
     run_id TEXT NOT NULL,
     run_name VARCHAR(100) NOT NULL,
     company_name VARCHAR(100) NOT NULL,

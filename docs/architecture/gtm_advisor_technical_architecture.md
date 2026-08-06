@@ -121,15 +121,15 @@ sequenceDiagram
     Cron->>Runner: Start daily job at 08:00 UTC
     Runner->>Runner: Acquire flock lock
     Runner->>Scrape: python -m orchestration.LS_MAIN_REFACTORED
-    Scrape->>PG: Read tech.ls_load_sources
-    Scrape->>PG: Read tech.ls_load_config FULL/DELTA mode
+    Scrape->>PG: Read tech.tech_load_sources
+    Scrape->>PG: Read tech.tech_load_config GTM_SOURCE_SCRAPING mode
     Scrape->>Scrape: Fetch listing URLs and article URLs
     Scrape->>PG: Merge articles into sector staging schemas
-    Scrape->>PG: Write run metrics to tech.ls_load_monitoring
+    Scrape->>PG: Write run metrics to tech.tech_load_monitoring
     Runner->>AI: python scripts/generate_article_summaries.py
     AI->>PG: Read staged articles needing summaries
     AI->>AI: Generate summary, topic, impact, geography, signal
-    AI->>PG: Upsert tech.ls_article_summary
+    AI->>PG: Upsert tech.tech_article_summary
     Runner->>Export: python scripts/export_dwh_views.py
     Export->>PG: Read dwh and dea export views
     Export->>Export: Build styled Excel workbook
@@ -141,12 +141,12 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph Tech["tech schema"]
-        LoadSources["ls_load_sources<br/>company source URLs"]
-        LoadConfig["ls_load_config<br/>active flag + FULL/DELTA"]
-        ScrapingConfig["ls_scraping_config<br/>runtime scrape parameters"]
-        TitleExclusion["ls_title_exclusion<br/>excluded article IDs"]
-        Monitoring["ls_load_monitoring<br/>run metrics and success timestamps"]
-        Summary["ls_article_summary<br/>AI summaries + structured fields"]
+        LoadSources["tech_load_sources<br/>company source URLs"]
+        LoadConfig["tech_load_config<br/>active flag + FULL/DELTA"]
+        ScrapingConfig["tech_scraping_config<br/>runtime scrape parameters"]
+        TitleExclusion["tech_title_exclusion<br/>excluded article IDs"]
+        Monitoring["tech_load_monitoring<br/>run metrics and success timestamps"]
+        Summary["tech_article_summary<br/>AI summaries + structured fields"]
     end
 
     subgraph Staging["sector staging schemas"]

@@ -18,23 +18,28 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.execute(
-        "ALTER TABLE tech.ls_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'"
-    )
-    op.execute(
-        "ALTER TABLE tech.ls_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'"
-    )
-    op.execute(
         """
-        UPDATE tech.ls_load_sources
-        SET industry_sector = 'LIFESCIENCE'
-        WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
-        """
-    )
-    op.execute(
-        """
-        UPDATE tech.ls_load_config
-        SET industry_sector = 'LIFESCIENCE'
-        WHERE industry_sector IS NULL OR btrim(industry_sector) = ''
+        DO $$
+        DECLARE
+            load_sources_table TEXT := CASE
+                WHEN to_regclass('tech.tech_load_sources') IS NOT NULL THEN 'tech.tech_load_sources'
+                ELSE 'tech.ls_load_sources'
+            END;
+            load_config_table TEXT := CASE
+                WHEN to_regclass('tech.tech_load_config') IS NOT NULL THEN 'tech.tech_load_config'
+                ELSE 'tech.ls_load_config'
+            END;
+        BEGIN
+            IF to_regclass(load_sources_table) IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT %L', load_sources_table, 'LIFESCIENCE');
+                EXECUTE format('UPDATE %s SET industry_sector = %L WHERE industry_sector IS NULL OR btrim(industry_sector) = %L', load_sources_table, 'LIFESCIENCE', '');
+            END IF;
+
+            IF to_regclass(load_config_table) IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT %L', load_config_table, 'LIFESCIENCE');
+                EXECUTE format('UPDATE %s SET industry_sector = %L WHERE industry_sector IS NULL OR btrim(industry_sector) = %L', load_config_table, 'LIFESCIENCE', '');
+            END IF;
+        END $$;
         """
     )
     op.execute(
@@ -86,5 +91,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("ls_load_config", "industry_sector", schema="tech")
-    op.drop_column("ls_load_sources", "industry_sector", schema="tech")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF to_regclass('tech.tech_load_config') IS NOT NULL THEN
+                ALTER TABLE tech.tech_load_config DROP COLUMN IF EXISTS industry_sector;
+            ELSIF to_regclass('tech.ls_load_config') IS NOT NULL THEN
+                ALTER TABLE tech.ls_load_config DROP COLUMN IF EXISTS industry_sector;
+            END IF;
+
+            IF to_regclass('tech.tech_load_sources') IS NOT NULL THEN
+                ALTER TABLE tech.tech_load_sources DROP COLUMN IF EXISTS industry_sector;
+            ELSIF to_regclass('tech.ls_load_sources') IS NOT NULL THEN
+                ALTER TABLE tech.ls_load_sources DROP COLUMN IF EXISTS industry_sector;
+            END IF;
+        END $$;
+        """
+    )

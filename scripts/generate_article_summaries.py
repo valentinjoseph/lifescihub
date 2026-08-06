@@ -156,7 +156,7 @@ def ensure_summary_table() -> None:
         connection.execute(
             text(
                 """
-                CREATE TABLE IF NOT EXISTS tech.ls_article_summary (
+                CREATE TABLE IF NOT EXISTS tech.tech_article_summary (
                     article_id TEXT PRIMARY KEY,
                     company_name TEXT NOT NULL,
                     url TEXT NOT NULL,
@@ -175,10 +175,10 @@ def ensure_summary_table() -> None:
                 """
             )
         )
-        connection.execute(text("ALTER TABLE tech.ls_article_summary ADD COLUMN IF NOT EXISTS key_topic TEXT"))
-        connection.execute(text("ALTER TABLE tech.ls_article_summary ADD COLUMN IF NOT EXISTS business_impact TEXT"))
-        connection.execute(text("ALTER TABLE tech.ls_article_summary ADD COLUMN IF NOT EXISTS geography TEXT"))
-        connection.execute(text("ALTER TABLE tech.ls_article_summary ADD COLUMN IF NOT EXISTS signal_type TEXT"))
+        connection.execute(text("ALTER TABLE tech.tech_article_summary ADD COLUMN IF NOT EXISTS key_topic TEXT"))
+        connection.execute(text("ALTER TABLE tech.tech_article_summary ADD COLUMN IF NOT EXISTS business_impact TEXT"))
+        connection.execute(text("ALTER TABLE tech.tech_article_summary ADD COLUMN IF NOT EXISTS geography TEXT"))
+        connection.execute(text("ALTER TABLE tech.tech_article_summary ADD COLUMN IF NOT EXISTS signal_type TEXT"))
 
 
 def upsert_summary(row: dict) -> None:
@@ -186,7 +186,7 @@ def upsert_summary(row: dict) -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_article_summary (
+                INSERT INTO tech.tech_article_summary (
                     article_id, company_name, url, title, article_summary, key_topic,
                     business_impact, geography, signal_type, content_hash,
                     summary_model, summary_status, error_message, summarized_at
@@ -221,7 +221,7 @@ def load_existing_summaries() -> dict[str, dict[str, str]]:
             text(
                 """
                 SELECT article_id, content_hash, summary_status, summary_model
-                FROM tech.ls_article_summary
+                FROM tech.tech_article_summary
                 """
             )
         ).mappings().all()

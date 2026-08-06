@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send a daily pipeline monitoring report from tech.ls_load_monitoring."""
+"""Send a daily pipeline monitoring report from tech.tech_load_monitoring."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def fetch_monitoring_rows(start_utc: datetime, end_utc: datetime) -> list[dict]:
             COALESCE(error_count, 0) AS error_count,
             run_start_ts,
             run_end_ts
-        FROM tech.ls_load_monitoring
+        FROM tech.tech_load_monitoring
         WHERE run_end_ts >= :start_utc
           AND run_end_ts <= :end_utc
         ORDER BY run_end_ts DESC, company_name
@@ -144,7 +144,7 @@ def format_monitoring_report(
     if not rows:
         lines.extend(
             [
-                "No rows were found in tech.ls_load_monitoring for this report day.",
+                "No rows were found in tech.tech_load_monitoring for this report day.",
                 "This usually means the scraper did not reach the monitoring write step.",
             ]
         )
@@ -217,7 +217,7 @@ def format_monitoring_report_html(
     if not rows:
         html.extend(
             [
-                "<p>No rows were found in <code>tech.ls_load_monitoring</code> for this report day.</p>",
+                "<p>No rows were found in <code>tech.tech_load_monitoring</code> for this report day.</p>",
                 "<p>This usually means the scraper did not reach the monitoring write step.</p>",
                 "</body></html>",
             ]

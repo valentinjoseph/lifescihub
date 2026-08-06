@@ -20,7 +20,7 @@ In practice, it functions as a lightweight competitive-intelligence and business
 
 The operational flow is intentionally simple and auditable:
 
-1. Source URLs and run modes are read from `tech.ls_load_sources` and `tech.ls_load_config`.
+1. Source URLs and run modes are read from `tech.tech_load_sources` and `tech.tech_load_config`.
 2. The scraper loads company newsroom pages and article pages.
 3. Cleaned article records are stored temporarily in PostgreSQL staging schemas.
 4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
@@ -60,6 +60,21 @@ For a more detailed engineering schema, see [docs/architecture/gtm_advisor_techn
 For local AI setup and verification, see [docs/OLLAMA.md](docs/OLLAMA.md).
 For company handoff guidance, see [docs/HANDOFF.md](docs/HANDOFF.md).
 
+## Naming Reference
+
+Current runtime names:
+
+- PostgreSQL database: `gtm_advisor`
+- PostgreSQL role/user: `gtm_advisor`
+- Docker Compose services: `gtm_advisor`, `gtm_advisor-postgres`, `ollama`, `caddy`
+- Docker containers: `gtm_advisor`, `gtm_advisor-postgres`, `gtm_advisor-ollama`, `gtm_advisor-caddy`
+- pipeline flow/run name: `GTM_SOURCE_SCRAPING`
+- configuration schema: `tech`
+- configuration/monitoring tables: `tech.tech_*`
+- staging schemas: `stg_<industry_sector>`
+- staging tables: `stg_<company>`
+- reporting schemas: `dwh` and `dea`
+
 ## Security Overview
 
 The product includes a hardened security baseline designed for safe homelab hosting:
@@ -91,8 +106,8 @@ This makes the product easy to operate: one Python application powers the API, t
 
 ## What It Does
 
-- reads source URLs from `tech.ls_load_sources`
-- reads `FULL` / `DELTA` mode from `tech.ls_load_config`
+- reads source URLs from `tech.tech_load_sources`
+- reads `FULL` / `DELTA` mode from `tech.tech_load_config`
 - scrapes listing pages and article pages
 - stores staged articles in `stg_<industry_sector>.stg_<company>` staging tables
 - generates AI summaries plus structured fields like topic and business impact
@@ -180,10 +195,10 @@ What they do:
 
 ## Load Modes
 
-Company load modes and sectors are configured in `tech.ls_load_config`:
+Company load modes and sectors are configured in `tech.tech_load_config`:
 
 - `FULL`: scrape and consider all validated articles from the configured source pages.
-- `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.ls_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
+- `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.tech_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
 - `INDUSTRY_SECTOR`: routes each company into a sector staging schema such as `stg_lifescience`, `stg_banking`, or `stg_energy`.
 
 The supported sector labels currently used by the request portal are:
@@ -202,7 +217,7 @@ TRANSPORT
 Staging tables are named without an ingest suffix:
 
 ```text
-tech.ls_load_config.INDUSTRY_SECTOR = TELECOMMUNICATION
+tech.tech_load_config.INDUSTRY_SECTOR = TELECOMMUNICATION
 company_name = ORANGE
 target table = stg_telecommunication.stg_orange
 ```
@@ -233,7 +248,7 @@ Manual run:
 
 ### Daily Email Report
 
-The daily runner can send a compact monitoring report by email after each run. The report is based on `tech.ls_load_monitoring` and includes:
+The daily runner can send a compact monitoring report by email after each run. The report is based on `tech.tech_load_monitoring` and includes:
 
 - whether the pipeline finished, failed, or was skipped because another run was active
 - total records inserted today
@@ -303,7 +318,7 @@ Request portal auth:
 
 - guest request account: `REQUEST_GUEST_USERNAME` / `REQUEST_GUEST_PASSWORD`
 - admin review account: `REQUEST_ADMIN_USERNAME` / `REQUEST_ADMIN_PASSWORD`
-- approval writes approved requests into `tech.ls_load_sources` and `tech.ls_load_config`
+- approval writes approved requests into `tech.tech_load_sources` and `tech.tech_load_config`
 
 Examples:
 
@@ -515,7 +530,7 @@ This makes the current score a practical business-importance ranking rather than
 - [scripts/purge_summarized_article_content.py](scripts/purge_summarized_article_content.py): retention cleanup for full article bodies
 - [scripts/export_dwh_views.py](scripts/export_dwh_views.py): workbook export
 - [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
-- [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.ls_load_monitoring`
+- [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.tech_load_monitoring`
 - [config/scripts/dwh_views.sql](config/scripts/dwh_views.sql): DWH reporting views and DEA consumption marts
 - [docs/TECHNICAL_FAQ.md](docs/TECHNICAL_FAQ.md): technical FAQ for maintainers and operators
 - [infra/.env.example](infra/.env.example): safe env template

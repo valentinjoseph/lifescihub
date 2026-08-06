@@ -37,8 +37,8 @@ def parse_csv_list(raw_value: str | None) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "gtm_advisor")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "gtm_advisor")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")

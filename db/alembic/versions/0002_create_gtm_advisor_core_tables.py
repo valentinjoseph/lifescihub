@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "ls_load_sources",
+        "tech_load_sources",
         sa.Column("company_name", sa.Text(), primary_key=True, nullable=False),
         sa.Column("industry_sector", sa.Text(), nullable=False, server_default="LIFESCIENCE"),
         sa.Column("source_1", sa.Text(), nullable=True),
@@ -33,7 +33,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "ls_load_config",
+        "tech_load_config",
         sa.Column("flow_name", sa.Text(), nullable=False),
         sa.Column("company_name", sa.Text(), nullable=False),
         sa.Column("load_type", sa.Text(), nullable=True),
@@ -41,12 +41,12 @@ def upgrade() -> None:
         sa.Column("selectors", sa.ARRAY(sa.Text()), nullable=True),
         sa.Column("s_created_ts", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("s_modified_ts", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.PrimaryKeyConstraint("flow_name", "company_name", name="ls_load_config_pk"),
+        sa.PrimaryKeyConstraint("flow_name", "company_name", name="tech_load_config_pk"),
         schema="tech",
     )
 
     op.create_table(
-        "ls_scraping_config",
+        "tech_scraping_config",
         sa.Column("param_name", sa.Text(), primary_key=True, nullable=False),
         sa.Column("param_value", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
@@ -56,7 +56,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "ls_load_monitoring",
+        "tech_load_monitoring",
         sa.Column("run_id", sa.Text(), nullable=False),
         sa.Column("run_name", sa.Text(), nullable=False),
         sa.Column("company_name", sa.Text(), nullable=False),
@@ -78,7 +78,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("ls_load_monitoring", schema="tech")
-    op.drop_table("ls_scraping_config", schema="tech")
-    op.drop_table("ls_load_config", schema="tech")
-    op.drop_table("ls_load_sources", schema="tech")
+    op.drop_table("tech_load_monitoring", schema="tech")
+    op.drop_table("tech_scraping_config", schema="tech")
+    op.drop_table("tech_load_config", schema="tech")
+    op.drop_table("tech_load_sources", schema="tech")

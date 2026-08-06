@@ -1,5 +1,5 @@
--- PostgreSQL DDL for tech.ls_load_sources
-CREATE TABLE tech.ls_load_sources (
+-- PostgreSQL DDL for tech.tech_load_sources
+CREATE TABLE tech.tech_load_sources (
     company_name VARCHAR(100) PRIMARY KEY,
     industry_sector VARCHAR(50) NOT NULL DEFAULT 'LIFESCIENCE',
     source_1 TEXT,
@@ -13,8 +13,8 @@ CREATE TABLE tech.ls_load_sources (
 );
 
 
--- PostgreSQL DML for ls_load_sources table
-INSERT INTO tech.ls_load_sources (company_name, industry_sector, source_1, source_2, source_3, source_4, source_5, comment) VALUES
+-- PostgreSQL DML for tech_load_sources table
+INSERT INTO tech.tech_load_sources (company_name, industry_sector, source_1, source_2, source_3, source_4, source_5, comment) VALUES
 ('ALLIANCE HEALTHCARE', 'LIFESCIENCE', 'https://www.alliance-healthcare.com/newsroom', NULL, NULL, NULL, NULL, 'latest news: august 2023'),
 ('ASTERA', 'LIFESCIENCE', 'https://www.asteralabs.com/newsroom/', NULL, NULL, NULL, NULL, NULL),
 ('BIOCODEX', 'LIFESCIENCE', 'https://www.biocodex.com/en/press/', NULL, NULL, NULL, NULL, NULL),

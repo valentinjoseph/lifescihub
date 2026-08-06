@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from db.session import engine
 
-FLOW_NAME = "LS_SOURCE_SCRAPING"
+FLOW_NAME = "GTM_SOURCE_SCRAPING"
 DEFAULT_INDUSTRY_SECTOR = "LIFESCIENCE"
 INDUSTRY_SECTORS = [
     "LIFESCIENCE",
@@ -40,7 +40,7 @@ def ensure_request_tables() -> None:
                 """
                 CREATE SCHEMA IF NOT EXISTS tech;
 
-                CREATE TABLE IF NOT EXISTS tech.ls_company_requests (
+                CREATE TABLE IF NOT EXISTS tech.tech_company_requests (
                     request_id TEXT PRIMARY KEY,
                     company_name TEXT NOT NULL,
                     requested_industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE',
@@ -59,7 +59,7 @@ def ensure_request_tables() -> None:
         connection.execute(
             text(
                 """
-                ALTER TABLE tech.ls_company_requests
+                ALTER TABLE tech.tech_company_requests
                 ADD COLUMN IF NOT EXISTS requested_industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'
                 """
             )
@@ -81,7 +81,7 @@ def list_company_requests(role: str, username: str) -> list[dict[str, Any]]:
             review_note,
             requested_ts,
             reviewed_ts
-        FROM tech.ls_company_requests
+        FROM tech.tech_company_requests
     """
     params: dict[str, Any] = {}
     if role != "admin":
@@ -108,7 +108,7 @@ def create_company_request(
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_company_requests (
+                INSERT INTO tech.tech_company_requests (
                     request_id,
                     company_name,
                     requested_industry_sector,
@@ -153,7 +153,7 @@ def review_company_request(
             text(
                 """
                 SELECT request_id, company_name, requested_industry_sector, source_url, review_status
-                FROM tech.ls_company_requests
+                FROM tech.tech_company_requests
                 WHERE request_id = :request_id
                 """
             ),
@@ -181,7 +181,7 @@ def review_company_request(
         connection.execute(
             text(
                 """
-                UPDATE tech.ls_company_requests
+                UPDATE tech.tech_company_requests
                 SET review_status = :review_status,
                     requested_industry_sector = :requested_industry_sector,
                     reviewer_username = :reviewer_username,
@@ -206,16 +206,16 @@ def review_company_request(
 
 def _apply_company_request(connection, company_name: str, industry_sector: str, source_url: str) -> None:
     connection.execute(
-        text("ALTER TABLE tech.ls_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+        text("ALTER TABLE tech.tech_load_sources ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
     )
     connection.execute(
-        text("ALTER TABLE tech.ls_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
+        text("ALTER TABLE tech.tech_load_config ADD COLUMN IF NOT EXISTS industry_sector TEXT NOT NULL DEFAULT 'LIFESCIENCE'")
     )
     existing_config = connection.execute(
         text(
             """
             SELECT load_type, active_flag, industry_sector
-            FROM tech.ls_load_config
+            FROM tech.tech_load_config
             WHERE flow_name = :flow_name AND company_name = :company_name
             """
         ),
@@ -228,7 +228,7 @@ def _apply_company_request(connection, company_name: str, industry_sector: str, 
         text(
             """
             SELECT source_1, source_2, source_3, source_4, source_5
-            FROM tech.ls_load_sources
+            FROM tech.tech_load_sources
             WHERE company_name = :company_name
             """
         ),
@@ -248,7 +248,7 @@ def _apply_company_request(connection, company_name: str, industry_sector: str, 
     connection.execute(
         text(
             """
-            INSERT INTO tech.ls_load_sources (
+            INSERT INTO tech.tech_load_sources (
                 company_name, industry_sector, source_1, source_2, source_3, source_4, source_5
             ) VALUES (
                 :company_name, :industry_sector, :source_1, :source_2, :source_3, :source_4, :source_5
@@ -277,7 +277,7 @@ def _apply_company_request(connection, company_name: str, industry_sector: str, 
     connection.execute(
         text(
             """
-            INSERT INTO tech.ls_load_config (
+            INSERT INTO tech.tech_load_config (
                 flow_name, company_name, load_type, active_flag, industry_sector
             ) VALUES (
                 :flow_name, :company_name, :load_type, :active_flag, :industry_sector

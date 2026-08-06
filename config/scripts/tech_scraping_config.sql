@@ -1,5 +1,5 @@
--- PostgreSQL DDL for tech.ls_scraping_config
-CREATE TABLE tech.ls_scraping_config (
+-- PostgreSQL DDL for tech.tech_scraping_config
+CREATE TABLE tech.tech_scraping_config (
     param_name VARCHAR(100) PRIMARY KEY,
     param_value TEXT NOT NULL,
     description TEXT,
@@ -8,8 +8,8 @@ CREATE TABLE tech.ls_scraping_config (
 );
 
 
--- PostgreSQL DML for ls_scraping_config table
-INSERT INTO tech.ls_scraping_config (param_name, param_value, description, s_created_ts, s_modified_ts) VALUES
+-- PostgreSQL DML for tech_scraping_config table
+INSERT INTO tech.tech_scraping_config (param_name, param_value, description, s_created_ts, s_modified_ts) VALUES
 ('ARTICLE_SLEEP_SEC', '0.15', 'Sleep time between article requests', '2026-04-13 12:42:35.435', '2026-04-13 12:42:35.435'),
 ('LISTING_SLEEP_SEC', '0.2', 'Sleep time between listing page requests', '2026-04-13 12:42:35.435', '2026-04-13 12:42:35.435'),
 ('MAX_ITEMS_PER_SOURCE', '50', 'Maximum articles to fetch per source', '2026-04-13 12:42:35.435', '2026-04-13 12:42:35.435'),
