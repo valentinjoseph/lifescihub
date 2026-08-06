@@ -27,8 +27,8 @@ Do not share local secrets or machine-specific state:
 The app is multi-sector. Companies are configured with `INDUSTRY_SECTOR` in both:
 
 ```sql
-tech.ls_load_sources
-tech.ls_load_config
+tech.tech_load_sources
+tech.tech_load_config
 ```
 
 The scraper writes each company to:
@@ -44,6 +44,22 @@ ORANGE in TELECOMMUNICATION -> stg_telecommunication.stg_orange
 ```
 
 The DWH and DEA views dynamically discover staging tables from PostgreSQL metadata using `STG%` schemas and `STG%` tables, so new sectors and companies do not require hardcoded DWH SQL changes once their staging tables exist.
+
+Canonical runtime names:
+
+```text
+database: gtm_advisor
+database user: gtm_advisor
+app container: gtm_advisor
+postgres container: gtm_advisor-postgres
+ollama container: gtm_advisor-ollama
+caddy container: gtm_advisor-caddy
+pipeline flow name: GTM_SOURCE_SCRAPING
+tech tables: tech.tech_*
+staging schemas: stg_<industry_sector>
+staging tables: stg_<company>
+reporting schemas: dwh, dea
+```
 
 ## AI Configuration
 
@@ -134,7 +150,7 @@ Database checks:
 SELECT column_name
 FROM information_schema.columns
 WHERE table_schema = 'tech'
-  AND table_name IN ('ls_load_sources', 'ls_load_config')
+  AND table_name IN ('tech_load_sources', 'tech_load_config')
   AND column_name = 'industry_sector';
 
 SELECT schemaname, tablename

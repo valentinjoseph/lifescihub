@@ -20,6 +20,12 @@ make scrape
 
 `make scrape` uses `.venv/bin/python` and runs the same module.
 
+The pipeline flow/run name stored in the database is:
+
+```text
+GTM_SOURCE_SCRAPING
+```
+
 ### What does the daily pipeline run?
 
 The daily wrapper is `scripts/run_daily_pipeline.sh`. It runs:
@@ -37,7 +43,7 @@ It also sends the daily monitoring report at process exit when `DAILY_REPORT_EMA
 The pipeline reads sources from PostgreSQL:
 
 ```sql
-tech.ls_load_sources
+tech.tech_load_sources
 ```
 
 The relevant columns are `company_name`, `industry_sector`, `source_1`, `source_2`, `source_3`, `source_4`, and `source_5`.
@@ -47,13 +53,13 @@ The relevant columns are `company_name`, `industry_sector`, `source_1`, `source_
 Load modes come from:
 
 ```sql
-tech.ls_load_config
+tech.tech_load_config
 ```
 
 Rows are filtered by:
 
 ```text
-flow_name = 'LS_SOURCE_SCRAPING'
+flow_name = 'GTM_SOURCE_SCRAPING'
 active_flag = 'Y'
 ```
 
@@ -67,8 +73,8 @@ The cutoff is:
 
 ```sql
 SELECT MAX(run_end_ts)
-FROM tech.ls_load_monitoring
-WHERE run_name = 'LS_SOURCE_SCRAPING'
+FROM tech.tech_load_monitoring
+WHERE run_name = 'GTM_SOURCE_SCRAPING'
   AND company_name = '<company>'
   AND run_status = 'SUCCESS';
 ```
@@ -102,18 +108,18 @@ The staging tables use `url` as the primary key. If an article URL already exist
 Runtime storage is PostgreSQL. Connection settings come from `infra/.env`:
 
 ```dotenv
-POSTGRES_DB=
-POSTGRES_USER=
+POSTGRES_DB=gtm_advisor
+POSTGRES_USER=gtm_advisor
 POSTGRES_PASSWORD=
-POSTGRES_HOST=
-POSTGRES_PORT=
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5434
 ```
 
 `db/session.py` builds the SQLAlchemy URL from those variables.
 
 ### What is the purpose of the old SQLite path?
 
-`LSW_DB_PATH` points to a legacy SQLite path used for one-time bootstrap compatibility. Runtime reads/writes use PostgreSQL.
+`GTM_ADVISOR_DB_PATH` points to a legacy SQLite path used for one-time bootstrap compatibility. Runtime reads/writes use PostgreSQL.
 
 ### What are the main PostgreSQL schemas?
 
@@ -123,6 +129,19 @@ Core schemas:
 - `stg_<industry_sector>`: sector-specific staging schemas containing one `stg_<company>` table per company.
 - `dwh`: reporting views.
 - `dea`: executive consumption views.
+
+Current `tech` tables use the `tech_` prefix:
+
+```text
+tech.tech_load_sources
+tech.tech_load_config
+tech.tech_scraping_config
+tech.tech_load_monitoring
+tech.tech_article_summary
+tech.tech_title_exclusion
+tech.tech_company_requests
+tech.tech_hub_activity_monitoring
+```
 
 ### How are company staging schemas named?
 
@@ -151,7 +170,7 @@ published_date
 s_created_ts
 ```
 
-`article_content` is temporary processing data. The daily workflow purges it after a non-empty summary exists in `tech.ls_article_summary`, leaving the URL, title, dates, content hash, and summary fields for reporting.
+`article_content` is temporary processing data. The daily workflow purges it after a non-empty summary exists in `tech.tech_article_summary`, leaving the URL, title, dates, content hash, and summary fields for reporting.
 
 The `url` column is the primary key.
 
@@ -160,7 +179,7 @@ The `url` column is the primary key.
 Runs are recorded in:
 
 ```sql
-tech.ls_load_monitoring
+tech.tech_load_monitoring
 ```
 
 This table stores `run_id`, `company_name`, `load_type`, `run_status`, `records_inserted`, metrics, and timestamps.
@@ -171,7 +190,7 @@ This table stores `run_id`, `company_name`, `load_type`, `run_status`, `records_
 SELECT company_name, run_status, load_type, records_inserted,
        urls_attempted, urls_fetched, parse_success_count, error_count,
        run_end_ts
-FROM tech.ls_load_monitoring
+FROM tech.tech_load_monitoring
 ORDER BY run_end_ts DESC, company_name
 LIMIT 50;
 ```
@@ -229,7 +248,7 @@ all      -> dwh.v_news_all_export
 Article summaries are stored in:
 
 ```sql
-tech.ls_article_summary
+tech.tech_article_summary
 ```
 
 The table contains summary text, structured fields, content hash, model metadata, status, and timestamp.
@@ -337,7 +356,7 @@ The report can show:
 It reads rows from:
 
 ```sql
-tech.ls_load_monitoring
+tech.tech_load_monitoring
 ```
 
 for the configured report day and timezone.
@@ -428,7 +447,7 @@ Admin endpoints accept:
 ```text
 X-Api-Key: <API_AUTH_TOKEN>
 Authorization: Bearer <API_AUTH_TOKEN>
-X-Run-Token: <LSW_RUN_TOKEN>
+X-Run-Token: <GTM_ADVISOR_RUN_TOKEN>
 ```
 
 `X-Run-Token` is kept for legacy compatibility.
@@ -451,8 +470,8 @@ The auth helpers support SHA-256 password hashes using the `sha256:<hash>` forma
 Allowed hosts are built from:
 
 ```dotenv
-LISCIHUB_PUBLIC_HOST=
-LISCIHUB_ALLOWED_HOSTS=
+GTM_ADVISOR_PUBLIC_HOST=
+GTM_ADVISOR_ALLOWED_HOSTS=
 ```
 
 plus localhost defaults.
@@ -479,8 +498,8 @@ The request portal lets guest users submit company/source requests and lets admi
 Approved requests update:
 
 ```sql
-tech.ls_load_sources
-tech.ls_load_config
+tech.tech_load_sources
+tech.tech_load_config
 ```
 
 ### Where is portal auth configured?
@@ -498,7 +517,7 @@ REQUEST_SESSION_SECRET=
 Activity is recorded in:
 
 ```sql
-tech.ls_hub_activity_monitoring
+tech.tech_hub_activity_monitoring
 ```
 
 It tracks login, filtering, and AI chat activity for the activity-monitoring page.
@@ -509,8 +528,10 @@ It tracks login, filtering, and AI chat activity for the activity-monitoring pag
 
 `docker-compose.yml` defines:
 
-- `liscihub-postgres`: PostgreSQL 16
-- `lifescience_watch`: FastAPI app and Python runtime
+- `gtm_advisor-postgres`: PostgreSQL 16
+- `gtm_advisor`: FastAPI app and Python runtime
+- `ollama`: local Ollama model server, container `gtm_advisor-ollama`
+- `caddy`: optional reverse proxy, container `gtm_advisor-caddy`
 
 ### What ports are used by default?
 
@@ -541,7 +562,7 @@ make docker-rebuild
 make psql
 ```
 
-### Why does the app container use `POSTGRES_HOST=liscihub-postgres`?
+### Why does the app container use `POSTGRES_HOST=gtm_advisor-postgres`?
 
 Inside Docker Compose, services resolve each other by service/container DNS name. The host machine uses `localhost`, but the app container uses the Compose service name.
 
@@ -618,16 +639,16 @@ Then inspect:
 
 ```sql
 SELECT COUNT(*) FROM dwh.v_news_all;
-SELECT COUNT(*) FROM tech.ls_article_summary;
+SELECT COUNT(*) FROM tech.tech_article_summary;
 ```
 
 ### A new company does not appear in the dashboard. What should I check?
 
 Verify:
 
-- `tech.ls_load_sources` has the source URL.
-- `tech.ls_load_sources` and `tech.ls_load_config` have the expected `industry_sector`.
-- `tech.ls_load_config` has an active `LS_SOURCE_SCRAPING` row.
+- `tech.tech_load_sources` has the source URL.
+- `tech.tech_load_sources` and `tech.tech_load_config` have the expected `industry_sector`.
+- `tech.tech_load_config` has an active `GTM_SOURCE_SCRAPING` row.
 - the scraper created `stg_<industry_sector>.stg_<company>`.
 - `make db-views` has been applied.
 - `dwh.v_news_all` returns rows for that company.
@@ -642,13 +663,13 @@ That usually means no discovered dated article had `published_date > last_succes
 
 ### Why does the report show no monitoring rows?
 
-If the daily report shows no rows, the scraper likely failed before writing to `tech.ls_load_monitoring`, or the report timezone/day does not match the rows' `run_end_ts`.
+If the daily report shows no rows, the scraper likely failed before writing to `tech.tech_load_monitoring`, or the report timezone/day does not match the rows' `run_end_ts`.
 
 ### How do I check the latest pipeline run ID?
 
 ```sql
 SELECT run_id, MAX(run_end_ts) AS run_end_ts
-FROM tech.ls_load_monitoring
+FROM tech.tech_load_monitoring
 GROUP BY run_id
 ORDER BY run_end_ts DESC
 LIMIT 5;
@@ -660,7 +681,7 @@ LIMIT 5;
 SELECT company_name, run_status, load_type,
        urls_attempted, urls_fetched, parse_success_count,
        records_inserted, error_count, run_message
-FROM tech.ls_load_monitoring
+FROM tech.tech_load_monitoring
 WHERE run_id = '<run-id>'
 ORDER BY company_name;
 ```

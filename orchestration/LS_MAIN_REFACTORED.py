@@ -25,8 +25,8 @@ from db.table_manager import PostgresTableManager, ensure_schema_and_table, get_
 from utils.data_quality import aggregate_metrics, validate_scraped_data
 
 
-LOGGER = logging.getLogger("lifescience_watch")
-FLOW_NAME = "LS_SOURCE_SCRAPING"
+LOGGER = logging.getLogger("gtm_advisor")
+FLOW_NAME = "GTM_SOURCE_SCRAPING"
 CATALOG = "local"
 DEFAULT_INDUSTRY_SECTOR = "LIFESCIENCE"
 
@@ -52,8 +52,8 @@ def ensure_load_config_file(path: Path) -> None:
     if not path.exists():
         path.write_text(
             "COMPANY_NAME,FLOW_NAME,LOAD_TYPE,ACTIVE_FLAG,INDUSTRY_SECTOR\n"
-            "Moderna,LS_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n"
-            "Pfizer,LS_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n",
+            "Moderna,GTM_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n"
+            "Pfizer,GTM_SOURCE_SCRAPING,FULL,Y,LIFESCIENCE\n",
             encoding="utf-8",
         )
 
@@ -64,7 +64,7 @@ def load_sources_from_postgres() -> list[dict[str, str]]:
             text(
                 """
                 SELECT company_name, industry_sector, source_1, source_2, source_3, source_4, source_5
-                FROM tech.ls_load_sources
+                FROM tech.tech_load_sources
                 ORDER BY company_name
                 """
             ),
@@ -103,7 +103,7 @@ def load_company_config(path: Path) -> dict[str, dict[str, str]]:
             text(
                 """
                 SELECT flow_name, company_name, load_type, active_flag, industry_sector
-                FROM tech.ls_load_config
+                FROM tech.tech_load_config
                 WHERE flow_name = :flow_name
                 """
             ),
@@ -134,11 +134,11 @@ def persist_company_config(path: Path, cfg_df: pd.DataFrame) -> None:
         for row in cfg_df.to_dict(orient="records")
     ]
     with engine.begin() as connection:
-        connection.execute(text("TRUNCATE TABLE tech.ls_load_config"))
+        connection.execute(text("TRUNCATE TABLE tech.tech_load_config"))
         connection.execute(
             text(
                 """
-                INSERT INTO tech.ls_load_config (flow_name, company_name, load_type, active_flag, industry_sector)
+                INSERT INTO tech.tech_load_config (flow_name, company_name, load_type, active_flag, industry_sector)
                 VALUES (:flow_name, :company_name, :load_type, :active_flag, :industry_sector)
                 """
             ),
@@ -151,7 +151,7 @@ def update_successful_companies_to_delta(path: Path, companies: list[str]) -> No
         return
     with engine.begin() as connection:
         cfg_df = pd.read_sql_query(
-            text("SELECT flow_name, company_name, load_type, active_flag, industry_sector FROM tech.ls_load_config"),
+            text("SELECT flow_name, company_name, load_type, active_flag, industry_sector FROM tech.tech_load_config"),
             connection,
         ).fillna("")
     mask = cfg_df["company_name"].isin(companies) & (cfg_df["flow_name"] == FLOW_NAME)
@@ -336,7 +336,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--db-path",
-        default=str(PROJECT_ROOT / "data" / "lifescience_watch.db"),
+        default=str(PROJECT_ROOT / "data" / "gtm_advisor.db"),
         help="Legacy SQLite database path used only for one-time bootstrap into PostgreSQL",
     )
     parser.add_argument(

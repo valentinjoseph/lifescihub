@@ -19,8 +19,8 @@ const chatQuestion = document.getElementById("chatQuestion");
 const chatMeta = document.getElementById("chatMeta");
 const chatAnswer = document.getElementById("chatAnswer");
 const chatSources = document.getElementById("chatSources");
-const TOKEN_STORAGE_KEY = "liscihub_access_token";
-const NEWS_FEED_VISIBLE_STORAGE_KEY = "liscihub_news_feed_visible";
+const TOKEN_STORAGE_KEY = "gtm_advisor_access_token";
+const NEWS_FEED_VISIBLE_STORAGE_KEY = "gtm_advisor_news_feed_visible";
 const defaultPeriods = [
   { value: "week", label: "Last 7 days" },
   { value: "month", label: "This month" },

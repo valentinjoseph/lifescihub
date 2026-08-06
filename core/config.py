@@ -37,8 +37,8 @@ def parse_csv_list(raw_value: str | None) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "gtm_advisor")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "gtm_advisor")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
@@ -46,7 +46,7 @@ API_TITLE = os.getenv("API_TITLE", "GTM Advisor API")
 API_VERSION = os.getenv("API_VERSION", "0.1.0")
 API_ENABLE_DOCS = env_bool("API_ENABLE_DOCS", True)
 API_REQUIRE_AUTH = env_bool("API_REQUIRE_AUTH", True)
-API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN", os.getenv("LSW_RUN_TOKEN"))
+API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN", os.getenv("GTM_ADVISOR_RUN_TOKEN"))
 VIEWER_ACCESS_TOKEN = os.getenv("VIEWER_ACCESS_TOKEN")
 VIEWER_ACCOUNTS = parse_account_map(os.getenv("VIEWER_ACCOUNTS"))
 VIEWER_USERNAME = os.getenv("VIEWER_USERNAME", "guest")
@@ -60,16 +60,16 @@ RATE_LIMIT_ENABLED = env_bool("RATE_LIMIT_ENABLED", True)
 PUBLIC_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("PUBLIC_RATE_LIMIT_WINDOW_SECONDS", "60"))
 PUBLIC_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("PUBLIC_RATE_LIMIT_MAX_REQUESTS", "240"))
 CHAT_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("CHAT_RATE_LIMIT_MAX_REQUESTS", "30"))
-LISCIHUB_PUBLIC_HOST = os.getenv("LISCIHUB_PUBLIC_HOST", "").strip()
-LISCIHUB_ALLOWED_HOSTS = parse_csv_list(os.getenv("LISCIHUB_ALLOWED_HOSTS"))
+GTM_ADVISOR_PUBLIC_HOST = os.getenv("GTM_ADVISOR_PUBLIC_HOST", "").strip()
+GTM_ADVISOR_ALLOWED_HOSTS = parse_csv_list(os.getenv("GTM_ADVISOR_ALLOWED_HOSTS"))
 ALLOWED_HOSTS = [
     host
     for host in [
         "127.0.0.1",
         "localhost",
-        LISCIHUB_PUBLIC_HOST or None,
-        f"www.{LISCIHUB_PUBLIC_HOST}" if LISCIHUB_PUBLIC_HOST else None,
-        *LISCIHUB_ALLOWED_HOSTS,
+        GTM_ADVISOR_PUBLIC_HOST or None,
+        f"www.{GTM_ADVISOR_PUBLIC_HOST}" if GTM_ADVISOR_PUBLIC_HOST else None,
+        *GTM_ADVISOR_ALLOWED_HOSTS,
     ]
     if host
 ]

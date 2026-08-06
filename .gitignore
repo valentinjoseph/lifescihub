@@ -22,5 +22,6 @@ build/
 *.egg-info/
 outputs/
 exports/
+backups/
 data/*.db
 docker-data/

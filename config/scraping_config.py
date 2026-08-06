@@ -22,7 +22,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 
 class ScrapingConfig:
-    """Load and manage scraper settings from tech.ls_scraping_config."""
+    """Load and manage scraper settings from tech.tech_scraping_config."""
 
     def __init__(self, config_path: str | Path | None = None, overrides: dict[str, Any] | None = None):
         self.config_path = Path(config_path) if config_path else None
@@ -34,7 +34,7 @@ class ScrapingConfig:
         config = dict(DEFAULT_CONFIG)
         with engine.begin() as connection:
             rows = connection.execute(
-                text("SELECT param_name, param_value FROM tech.ls_scraping_config ORDER BY param_name")
+                text("SELECT param_name, param_value FROM tech.tech_scraping_config ORDER BY param_name")
             ).mappings().all()
 
         if not rows and self.config_path and self.config_path.exists():

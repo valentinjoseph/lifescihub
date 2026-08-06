@@ -60,7 +60,7 @@ class AuthHelperTests(unittest.TestCase):
         header_request = build_request("/api/dashboard/news", headers=[(b"x-viewer-token", expected.encode())])
         cookie_request = build_request(
             "/api/dashboard/news",
-            headers=[(b"cookie", f"liscihub_viewer_token={expected}".encode())],
+            headers=[(b"cookie", f"gtm_advisor_viewer_token={expected}".encode())],
         )
         self.assertTrue(request_has_valid_viewer_auth(header_request, expected))
         self.assertTrue(request_has_valid_viewer_auth(cookie_request, expected))

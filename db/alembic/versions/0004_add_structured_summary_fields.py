@@ -18,14 +18,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("ls_article_summary", sa.Column("key_topic", sa.Text(), nullable=True), schema="tech")
-    op.add_column("ls_article_summary", sa.Column("business_impact", sa.Text(), nullable=True), schema="tech")
-    op.add_column("ls_article_summary", sa.Column("geography", sa.Text(), nullable=True), schema="tech")
-    op.add_column("ls_article_summary", sa.Column("signal_type", sa.Text(), nullable=True), schema="tech")
+    op.add_column("tech_article_summary", sa.Column("key_topic", sa.Text(), nullable=True), schema="tech")
+    op.add_column("tech_article_summary", sa.Column("business_impact", sa.Text(), nullable=True), schema="tech")
+    op.add_column("tech_article_summary", sa.Column("geography", sa.Text(), nullable=True), schema="tech")
+    op.add_column("tech_article_summary", sa.Column("signal_type", sa.Text(), nullable=True), schema="tech")
 
 
 def downgrade() -> None:
-    op.drop_column("ls_article_summary", "signal_type", schema="tech")
-    op.drop_column("ls_article_summary", "geography", schema="tech")
-    op.drop_column("ls_article_summary", "business_impact", schema="tech")
-    op.drop_column("ls_article_summary", "key_topic", schema="tech")
+    op.drop_column("tech_article_summary", "signal_type", schema="tech")
+    op.drop_column("tech_article_summary", "geography", schema="tech")
+    op.drop_column("tech_article_summary", "business_impact", schema="tech")
+    op.drop_column("tech_article_summary", "key_topic", schema="tech")

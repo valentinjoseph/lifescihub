@@ -74,7 +74,7 @@ class DailyMonitoringReportTests(unittest.TestCase):
         )
 
         self.assertIn("Pipeline status: FAILED", body)
-        self.assertIn("No rows were found in tech.ls_load_monitoring", body)
+        self.assertIn("No rows were found in tech.tech_load_monitoring", body)
 
     def test_html_report_uses_table_and_highlight_colors(self) -> None:
         html = send_daily_monitoring_report.format_monitoring_report_html(

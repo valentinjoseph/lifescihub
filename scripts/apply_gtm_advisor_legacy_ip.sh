@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NETPLAN_SOURCE="${PROJECT_ROOT}/infra/netplan-lifescience-legacy-ip.yaml"
-NETPLAN_TARGET="/etc/netplan/10-lifescience-legacy-ip.yaml"
+NETPLAN_SOURCE="${PROJECT_ROOT}/infra/gtm_advisor_legacy_ip.yaml"
+NETPLAN_TARGET="/etc/netplan/10-gtm-advisor-legacy-ip.yaml"
 LEGACY_IP="192.168.1.28/24"
 INTERFACE="eno1"
 

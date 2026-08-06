@@ -20,7 +20,7 @@ In practice, it functions as a lightweight competitive-intelligence and business
 
 The operational flow is intentionally simple and auditable:
 
-1. Source URLs and run modes are read from `tech.ls_load_sources` and `tech.ls_load_config`.
+1. Source URLs and run modes are read from `tech.tech_load_sources` and `tech.tech_load_config`.
 2. The scraper loads company newsroom pages and article pages.
 3. Cleaned article records are stored temporarily in PostgreSQL staging schemas.
 4. AI generates a short summary plus structured fields such as topic, business impact, geography, and signal type.
@@ -56,9 +56,24 @@ DEA consumption marts
 FastAPI dashboard / Excel export
 ```
 
-For a more detailed engineering schema, see [docs/architecture/liscihub_technical_architecture.md](docs/architecture/liscihub_technical_architecture.md).
+For a more detailed engineering schema, see [docs/architecture/gtm_advisor_technical_architecture.md](docs/architecture/gtm_advisor_technical_architecture.md).
 For local AI setup and verification, see [docs/OLLAMA.md](docs/OLLAMA.md).
 For company handoff guidance, see [docs/HANDOFF.md](docs/HANDOFF.md).
+
+## Naming Reference
+
+Current runtime names:
+
+- PostgreSQL database: `gtm_advisor`
+- PostgreSQL role/user: `gtm_advisor`
+- Docker Compose services: `gtm_advisor`, `gtm_advisor-postgres`, `ollama`, `caddy`
+- Docker containers: `gtm_advisor`, `gtm_advisor-postgres`, `gtm_advisor-ollama`, `gtm_advisor-caddy`
+- pipeline flow/run name: `GTM_SOURCE_SCRAPING`
+- configuration schema: `tech`
+- configuration/monitoring tables: `tech.tech_*`
+- staging schemas: `stg_<industry_sector>`
+- staging tables: `stg_<company>`
+- reporting schemas: `dwh` and `dea`
 
 ## Security Overview
 
@@ -85,14 +100,14 @@ The website is not a separate frontend application. It is served directly by the
 - dashboard data comes from PostgreSQL reporting views
 - the news feed can be filtered independently by industry sector, period, company, and topic
 - the chat experience queries all available dashboard news and does not inherit the news-feed period, company, or topic filters
-- a public domain can be published through a reverse proxy by setting `LISCIHUB_PUBLIC_HOST`
+- a public domain can be published through a reverse proxy by setting `GTM_ADVISOR_PUBLIC_HOST`
 
 This makes the product easy to operate: one Python application powers the API, the dashboard, the viewer flow, and the reporting endpoints.
 
 ## What It Does
 
-- reads source URLs from `tech.ls_load_sources`
-- reads `FULL` / `DELTA` mode from `tech.ls_load_config`
+- reads source URLs from `tech.tech_load_sources`
+- reads `FULL` / `DELTA` mode from `tech.tech_load_config`
 - scrapes listing pages and article pages
 - stores staged articles in `stg_<industry_sector>.stg_<company>` staging tables
 - generates AI summaries plus structured fields like topic and business impact
@@ -103,7 +118,7 @@ This makes the product easy to operate: one Python application powers the API, t
 ## Repo Map
 
 ```text
-lifescience_watch/
+gtm_advisor/
 ├── app.py                      FastAPI wrapper for local operations
 ├── Makefile                    Common local commands
 ├── core/                       Scraper, monitoring, runtime config
@@ -122,8 +137,8 @@ lifescience_watch/
 ## Quick Start
 
 ```bash
-git clone <repo-url> lifescience_watch
-cd lifescience_watch
+git clone <repo-url> gtm_advisor
+cd gtm_advisor
 make setup
 chmod +x scripts/setup_ollama.sh
 ./scripts/setup_ollama.sh
@@ -180,10 +195,10 @@ What they do:
 
 ## Load Modes
 
-Company load modes and sectors are configured in `tech.ls_load_config`:
+Company load modes and sectors are configured in `tech.tech_load_config`:
 
 - `FULL`: scrape and consider all validated articles from the configured source pages.
-- `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.ls_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
+- `DELTA`: consider articles whose `published_date` is later than that company's previous successful `tech.tech_load_monitoring.run_end_ts`, plus articles without a usable `published_date`.
 - `INDUSTRY_SECTOR`: routes each company into a sector staging schema such as `stg_lifescience`, `stg_banking`, or `stg_energy`.
 
 The supported sector labels currently used by the request portal are:
@@ -202,7 +217,7 @@ TRANSPORT
 Staging tables are named without an ingest suffix:
 
 ```text
-tech.ls_load_config.INDUSTRY_SECTOR = TELECOMMUNICATION
+tech.tech_load_config.INDUSTRY_SECTOR = TELECOMMUNICATION
 company_name = ORANGE
 target table = stg_telecommunication.stg_orange
 ```
@@ -220,7 +235,7 @@ The daily scheduled job runs:
 Portable cron example:
 
 ```cron
-0 8 * * * cd /path/to/lifescience_watch && /bin/bash scripts/run_daily_pipeline.sh >> outputs/run_daily_pipeline.log 2>&1
+0 8 * * * cd /path/to/gtm_advisor && /bin/bash scripts/run_daily_pipeline.sh >> outputs/run_daily_pipeline.log 2>&1
 ```
 
 The script resolves the repository root from its own location, so it does not require the project to live under a specific username or host path.
@@ -233,7 +248,7 @@ Manual run:
 
 ### Daily Email Report
 
-The daily runner can send a compact monitoring report by email after each run. The report is based on `tech.ls_load_monitoring` and includes:
+The daily runner can send a compact monitoring report by email after each run. The report is based on `tech.tech_load_monitoring` and includes:
 
 - whether the pipeline finished, failed, or was skipped because another run was active
 - total records inserted today
@@ -292,7 +307,7 @@ Admin auth headers:
 
 - `X-Api-Key: ${API_AUTH_TOKEN}`
 - or `Authorization: Bearer ${API_AUTH_TOKEN}`
-- legacy compatibility: `X-Run-Token: ${LSW_RUN_TOKEN}`
+- legacy compatibility: `X-Run-Token: ${GTM_ADVISOR_RUN_TOKEN}`
 
 Viewer auth options:
 
@@ -303,7 +318,7 @@ Request portal auth:
 
 - guest request account: `REQUEST_GUEST_USERNAME` / `REQUEST_GUEST_PASSWORD`
 - admin review account: `REQUEST_ADMIN_USERNAME` / `REQUEST_ADMIN_PASSWORD`
-- approval writes approved requests into `tech.ls_load_sources` and `tech.ls_load_config`
+- approval writes approved requests into `tech.tech_load_sources` and `tech.tech_load_config`
 
 Examples:
 
@@ -371,7 +386,7 @@ This repo is prepared for local development, homelab hosting, or small-server de
 - viewer cookie flow for shared read-only access
 - public health endpoints for container and reverse-proxy checks
 - rate limiting for dashboard/news/chat traffic
-- trusted-host enforcement via `LISCIHUB_PUBLIC_HOST`
+- trusted-host enforcement via `GTM_ADVISOR_PUBLIC_HOST`
 - hardened container settings:
   - localhost-only bind by default
   - `no-new-privileges`
@@ -391,7 +406,7 @@ Use the concrete value from `infra/.env` in your proxy config, for example `http
 Then set the public hostname in `infra/.env`:
 
 ```dotenv
-LISCIHUB_PUBLIC_HOST=your-domain.example
+GTM_ADVISOR_PUBLIC_HOST=your-domain.example
 ```
 
 ### Access From A Corporate PC
@@ -400,7 +415,7 @@ By default the Docker stack binds the website to `127.0.0.1`, so it is only reac
 
 Recommended options:
 
-- use the public HTTPS domain behind your reverse proxy, then set `LISCIHUB_PUBLIC_HOST=your-domain.example`
+- use the public HTTPS domain behind your reverse proxy, then set `GTM_ADVISOR_PUBLIC_HOST=your-domain.example`
 - or create an SSH tunnel from the corporate PC to the host and open the forwarded local URL
 
 For a trusted LAN-only test, you can expose the app on the host network interface. In `infra/.env`, set:
@@ -408,7 +423,7 @@ For a trusted LAN-only test, you can expose the app on the host network interfac
 ```dotenv
 API_BIND_HOST=0.0.0.0
 API_BIND_PORT=8011
-LISCIHUB_ALLOWED_HOSTS=192.168.1.50,server-name.local
+GTM_ADVISOR_ALLOWED_HOSTS=192.168.1.50,server-name.local
 ```
 
 Replace `192.168.1.50` and `server-name.local` with the IP address or DNS name you will type into the corporate PC browser. Then restart:
@@ -429,17 +444,17 @@ If the corporate browser still cannot connect, check that the host firewall allo
 
 Connection defaults:
 
-- database: `liscihub`
+- database: `gtm_advisor`
 - schema: `tech`
-- postgres container: `liscihub-postgres`
+- postgres container: `gtm_advisor-postgres`
 - host port: value of `POSTGRES_PORT` in `infra/.env`; default `5434`
 
 DBeaver on the same machine:
 
 - host: `127.0.0.1`
 - port: value of `POSTGRES_PORT`; default `5434`
-- database: `liscihub`
-- username: `liscihub`
+- database: `gtm_advisor`
+- username: `gtm_advisor`
 - password: value of `POSTGRES_PASSWORD` in `infra/.env`
 
 DBeaver from another workstation:
@@ -515,7 +530,7 @@ This makes the current score a practical business-importance ranking rather than
 - [scripts/purge_summarized_article_content.py](scripts/purge_summarized_article_content.py): retention cleanup for full article bodies
 - [scripts/export_dwh_views.py](scripts/export_dwh_views.py): workbook export
 - [scripts/run_daily_pipeline.sh](scripts/run_daily_pipeline.sh): scheduled end-to-end runner
-- [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.ls_load_monitoring`
+- [scripts/send_daily_monitoring_report.py](scripts/send_daily_monitoring_report.py): email report from `tech.tech_load_monitoring`
 - [config/scripts/dwh_views.sql](config/scripts/dwh_views.sql): DWH reporting views and DEA consumption marts
 - [docs/TECHNICAL_FAQ.md](docs/TECHNICAL_FAQ.md): technical FAQ for maintainers and operators
 - [infra/.env.example](infra/.env.example): safe env template
@@ -523,5 +538,5 @@ This makes the current score a practical business-importance ranking rather than
 ## Notes
 
 - Some sites still use anti-bot or challenge pages, so extraction quality varies by source.
-- `data/*.csv` and `data/lifescience_watch.db` remain as bootstrap/local compatibility assets.
+- `data/*.csv` and `data/gtm_advisor.db` remain as bootstrap/local compatibility assets.
 - The repo is designed to run from any checkout path. Keep machine-specific values in `infra/.env`, cron entries, and reverse-proxy config rather than committing them to source files.

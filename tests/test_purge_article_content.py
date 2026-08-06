@@ -36,7 +36,7 @@ class PurgeArticleContentTests(unittest.TestCase):
         self.assertEqual(connection.execute.call_count, 2)
         first_sql = str(connection.execute.call_args_list[0].args[0])
         self.assertIn("SET article_content = NULL", first_sql)
-        self.assertIn("tech.ls_article_summary", first_sql)
+        self.assertIn("tech.tech_article_summary", first_sql)
         self.assertIn("summary.article_id = staging.id", first_sql)
 
 

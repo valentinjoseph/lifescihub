@@ -1,25 +1,25 @@
--- PostgreSQL DDL for tech.ls_title_exclusion table
-CREATE TABLE tech.ls_title_exclusion (
+-- PostgreSQL DDL for tech.tech_title_exclusion table
+CREATE TABLE tech.tech_title_exclusion (
     company_name VARCHAR(50),
     id VARCHAR(36),
     title TEXT
 );
 
 -- Add table comment
-COMMENT ON TABLE tech.ls_title_exclusion IS 'Exclusion list for articles that should be filtered out from the data warehouse views. Contains article IDs and titles to exclude.';
+COMMENT ON TABLE tech.tech_title_exclusion IS 'Exclusion list for articles that should be filtered out from the data warehouse views. Contains article IDs and titles to exclude.';
 
 -- Add column comments
-COMMENT ON COLUMN tech.ls_title_exclusion.company_name IS 'Company name associated with the excluded article';
-COMMENT ON COLUMN tech.ls_title_exclusion.id IS 'Article ID to exclude (typically UUID)';
-COMMENT ON COLUMN tech.ls_title_exclusion.title IS 'Article title to exclude';
+COMMENT ON COLUMN tech.tech_title_exclusion.company_name IS 'Company name associated with the excluded article';
+COMMENT ON COLUMN tech.tech_title_exclusion.id IS 'Article ID to exclude (typically UUID)';
+COMMENT ON COLUMN tech.tech_title_exclusion.title IS 'Article title to exclude';
 
 -- Create index for efficient lookups
-CREATE INDEX idx_ls_title_exclusion_id ON tech.ls_title_exclusion(id);
-CREATE INDEX idx_ls_title_exclusion_company ON tech.ls_title_exclusion(company_name);
+CREATE INDEX idx_tech_title_exclusion_id ON tech.tech_title_exclusion(id);
+CREATE INDEX idx_tech_title_exclusion_company ON tech.tech_title_exclusion(company_name);
 
 
--- PostgreSQL DML for ls_title_exclusion table (85 rows)
-INSERT INTO tech.ls_title_exclusion (company_name, id, title) VALUES
+-- PostgreSQL DML for tech_title_exclusion table (85 rows)
+INSERT INTO tech.tech_title_exclusion (company_name, id, title) VALUES
 ('CEVA SANTÉ', '334496dc-74a0-4419-a438-a67ac7b16b70', 'Ceva Santé Animale | Discover our press releases'),
 ('CEVA SANTÉ', '6f695334-8eb3-4f1a-b050-5ba957773824', 'Ceva Santé Animale | Discover our latest news'),
 ('CEVA SANTÉ', 'a304c073-ea20-49cf-b2d7-d55b6a366c55', 'Ceva Santé Animale - Communiqués de presse'),

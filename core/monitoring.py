@@ -23,7 +23,7 @@ class ScrapingMonitor:
             connection.execute(
                 text(
                     """
-                CREATE TABLE IF NOT EXISTS tech.ls_load_monitoring (
+                CREATE TABLE IF NOT EXISTS tech.tech_load_monitoring (
                     run_id TEXT,
                     run_name TEXT,
                     company_name TEXT,
@@ -62,7 +62,7 @@ class ScrapingMonitor:
             connection.execute(
                 text(
                     """
-                INSERT INTO tech.ls_load_monitoring (
+                INSERT INTO tech.tech_load_monitoring (
                     run_id, run_name, company_name, target_schema, target_table, load_type,
                     run_status, run_message, records_inserted, urls_attempted, urls_fetched,
                     parse_success_count, avg_response_time_ms, error_count, run_start_ts, run_end_ts
@@ -99,7 +99,7 @@ class ScrapingMonitor:
                 text(
                     """
                 SELECT MAX(run_end_ts) AS last_success
-                FROM tech.ls_load_monitoring
+                FROM tech.tech_load_monitoring
                 WHERE run_name = :run_name AND company_name = :company_name AND run_status = 'SUCCESS'
                 """,
                 ),
